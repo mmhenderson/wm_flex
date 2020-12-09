@@ -1,5 +1,7 @@
 % Make ROIs for visual (retinotopically-defined) ROIs in each subject, in
 % the space needed for oriSpin.
+
+%%
 clear
 close all
 

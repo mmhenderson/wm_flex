@@ -320,7 +320,7 @@ else
     swm = [];
 end
 
-%% DWM LOC TASK
+%% DWM LOC TASK (NOT USING THIS FOR ANY MAIN ANALYSES BUT SAVING IT ANYWAY)
 if subnum~=1
     currentRun = 0; nTRs_dwm = 452 - TRditched; 
     % these are all going to be arrays [nTRs*nRunsTotal x 1], initialize them
@@ -459,7 +459,7 @@ if subnum~=1
 else
     dwm = [];
 end
-%% SPATIAL POSITION LOCALIZER 
+%% SPATIAL POSITION LOCALIZER (THIS WAS ONLY USED FOR THRESHOLDING)
 nTRs_spatloc = 391 - TRditched;
 
 currentRun = 0; 
@@ -564,7 +564,7 @@ spatLoc.EventLabels = EventLabels';
 
 assert(numel(spatLoc.EventLabels)==nTRs_spatloc*numel(unique(spatLoc.RunLabels)), 'wrong number of total TRs!')
 
-%% DIGIT LOCALIZER %%%
+%% DIGIT LOCALIZER %%% (THIS WAS ONLY USED FOR CHOOSING MOTOR VOXELS)
 nRuns = 0; nTRs_digloc = 399 - 16;
 RunLabels = []; ExpDigit = []; ActDigit = [];
 EventLabels = []; TrialLabels = []; RT = [];

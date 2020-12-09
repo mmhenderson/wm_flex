@@ -1,5 +1,5 @@
-% use the activation from digit localizer task to define motor-related ROIs
-% in each subject.
+% Use the activation from digit localizer (button pressing) task to define
+% motor-related ROIs in each subject.
 
 % using the definition of brodmann areas done by freesurfer's recon-all
 % function to define the rough boundaries of where areas should be, then these
@@ -83,7 +83,6 @@ clear info
 
 
 %% first go into the Doreti folder, and make labels based on the anatomy
-
 if doVolumes
     
     % check to see if labels are already made or not
@@ -128,10 +127,7 @@ if doVolumes
     % make Visual Area masks
     if makemasks
         delete([exp_path, 'VOIs_parcel/S' char(subnum) '/*h_*nii.gz']); %delete retino content from VOI folder
-        %     ROIs_orig = {'S_precentral-sup-part','S_precentral-inf-part','S_central','S_postcentral',...
-        %         'G_precentral','G_postcentral','G_parietal_sup',...
-        %         'G&S_subcentral','G_pariet_inf-Supramar','G&S_paracentral','G_front_sup'};
-        
+
         func_template = [func_path, 'MCTemplateXFM01.nii.gz'];
         regfile = [func_path, 'Func2Anat_auto.dat'];
         outdir = [exp_path, 'VOIs_parcel/S' char(subnum) '/'];
@@ -158,13 +154,9 @@ if doVolumes
                         return
                     end
                 end
-            end %roi_idx
-        end
-        
-        
-    end
-    
-    
+            end 
+        end               
+    end        
 end
 %% now load the localizer, and mask out the parts we need
 %
@@ -232,8 +224,7 @@ for cc=1:length(contrasts)
         
         % now intersect it with the localizer map
         maskedVol = fullVol & vals2use;
-        %         fprintf('%s %s %s: found %d voxels for %s\n',subinit,hemis{hh}, ROIs{vv},sum(maskedVol(:)),contrasts{cc});
-        
+ 
         if sum(maskedVol(:))>minVox
             fprintf('%s %s %s: found %d voxels for %s\n',subinit,hemis{hh}, final_roi_names{pp},sum(maskedVol(:)),contrasts{cc});
             newVOI = thisVOI;
@@ -247,7 +238,5 @@ for cc=1:length(contrasts)
         
         
     end
-    
-    
-    
+
 end
