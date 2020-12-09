@@ -6,6 +6,6 @@ Spatial working memory task with random and predictable responses.
 ## Preprocessing
 - Code to do all data preprocessing and trial epoching.
 ## Analysis
-- includes code to reproduce all main analyses as well as some additional code.
+- Code to reproduce all main analyses of behavior as well as fMRI data. Also includes additional analyses not included in our paper.
 ## Notes
-- in all code here, subjects 2-7 correpsond to the 6 subjects included in the final analyses. Subject 1 participated in an early pilot version of the experiment and did not complete the final version of the experiment.
+- In all code here, subjects 2-7 correspond to the 6 subjects included in the final analyses. Subject 1 participated in an early pilot version of the experiment and did not complete the final version of the experiment.
