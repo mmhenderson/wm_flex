@@ -1,5 +1,13 @@
-% Make Sample File for oriSpin. Note, all preprocessing steps plus the
-% localizer analysis should have been completed before running this!
+%% Make Sample File for oriSpin. 
+% This will be a big .mat file that concatenates data from all runs of 
+% each task, each having the format [nTRsTotal x nVoxels]. 
+% This "sample file" from each task gets further processed by the scripts with 
+% prefix getAvgSignal... into a format that is [nTrials x nVoxels], which
+% then gets used for further analyses.
+% All preprocessing of task data and analysis of the spatial localizer
+% (used for thresholding) are run before this. 
+
+%%
 clear
 close all
 

@@ -12,7 +12,7 @@
 clear 
 close all
 
-sublist = [7];
+sublist = [2:7];
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
 filesepinds = find(mypath==filesep);

@@ -1,8 +1,8 @@
-% Get the timing of all events in all runs
-% saves out a file that is used by MakeSampleFile
+%% Get the timing of all events in all runs of each task
+% saves out a file for each subject that is used by MakeSampleFile
 
 % MMH 9/5/18
-
+%%
 clear
 close all
 
