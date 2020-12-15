@@ -13,7 +13,7 @@ function [acc,dprime,predLabs,distEachClass] = my_classifier_cross_wconf(trndat,
 %   crossvalidate, could also be session numbers etc).
 
 % classstr: a string specifying which type of classifier to use. Defaults
-%   to a linear discriminant implemented in classify.m. Look down in the
+%   to a custom normalized euclidean distance classifier. Look down in the
 %   code to see what the options are.
 % resamp: integer specifying how to resample, if the trn set is unbalanced.
 %   if resamp==1, will downsample larger set
@@ -42,7 +42,7 @@ function [acc,dprime,predLabs,distEachClass] = my_classifier_cross_wconf(trndat,
 % set, as long as all the run numbers exist and correspond in both sets. 
 % MMH 11/4/20: this version returns the confidence. Note this only works
 % for eucDistClass.m and normEucDistClass.m, don't have a reliable way of
-% estimating confidence for other kinds of classifiers yet!
+% estimating confidence for other kinds of classifiers yet.
 %% set up, check inputs 
 if nargin<6
     error('you must supply trndat, tstdat, trnlabs, tstlabs, trnruns, and tstruns')
@@ -76,7 +76,7 @@ end
 % set default vals
 if isempty(nVox2Keep); nVox2Keep = nvox; end
 if isempty(resamp);resamp = 1; end
-if isempty(classstr); classstr = 'classify_diaglinear';end
+if isempty(classstr); classstr = 'normEucDist';end
 if isempty(voxStatTable); voxStatTable = zeros(nvox, nruns); end
 
 if resamp==0
@@ -95,22 +95,11 @@ if sum(voxStatTable(:)==0) && nVox2Keep<nvox
     warning('you specified nVox2Keep as less than the total num voxels, but didn''t specify voxStatTable. Using all voxels.'); 
 end
 
-% check to see which svmtrain is on path...by default this would be the
-% matlab built in, but better to use libSVM.
-if contains(classstr,'svm')
-    svm_version = which('svmtrain');
-    if ~strcmp(svm_version(end-14:end), 'svmtrain.mexa64')
-        error('Verify that you are using the libSVM (3.1) version of "svmtrain". If you think you are using the correct version, you can comment this out and proceed.')
-    end
-end
 if strcmp(classstr, 'eucDist') && exist('eucDistClass','file')~=2
-    error('make sure the file eucDistClass.m is on your path.\n%s','A copy of this file is in maggie/mFiles/Classifiers/')
+    error('make sure the file eucDistClass.m is on your path.')
 end
 if strcmp(classstr, 'normEucDist') && exist('normEucDistClass','file')~=2
-    error('make sure the file normEucDistClass.m is on your path.\n%s','A copy of this file is in maggie/mFiles/Classifiers/')
-end
-if strcmp(classstr, 'ideal_observer') && exist('ideal_observer','file')~=2
-    error('make sure the file ideal_observer.m is on your path.\n%s','A copy of this file is in maggie/mFiles/Classifiers/')
+    error('make sure the file normEucDistClass.m is on your path.')
 end
      
 % these are all the groups in the full data set.
@@ -211,31 +200,10 @@ for cv=1:nruns
             trnuse = trndat_thisloop(useinds,:);
             trnlabsuse = trnlabs_thisloop(useinds,:);
 
-              %use it to predict on test set
+            %use it to predict on test set
             switch classstr
-%                 case 'svmtrain_lin'
-%                     obj=svmtrain(trnlabsuse,trnuse,'-t 0 -q');
-%                     thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%                 case 'svmtrain_poly'
-%                     obj=svmtrain(trnlabsuse,trnuse,'-t 1 -q');
-%                     thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%                 case 'svmtrain_RBF'
-%                     obj=svmtrain(trnlabsuse,trnuse,'-t 2 -q');
-%                     thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%                 case 'svmtrain_sig'
-%                     obj=svmtrain(trnlabsuse,trnuse,'-t 3 -q');
-%                     thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%                 case 'fitcdiscr'
-%                     obj=fitcdiscr(trnuse,trnlabsuse);
-%                     thesepredlabs=predict(obj,tstdat_thisloop);
-%                 case 'classify_diaglinear'
-%                     thesepredlabs = classify(tstdat_thisloop,trnuse,trnlabsuse,'diagLinear');
-%                 case 'classify_mahal'
-%                     thesepredlabs = classify(tstdat_thisloop,trnuse,trnlabsuse,'mahalanobis');
                 case 'eucDist'
                     [thesepredlabs,distAll] = eucDistClass(trnuse,tstdat_thisloop,trnlabsuse);
-%                 case 'ideal_observer'
-%                     [thesepredlabs,~] = ideal_observer(trnuse,tstdat_thisloop,trnlabsuse);
                 case 'normEucDist'
                     [thesepredlabs,distAll] = normEucDistClass(trnuse,tstdat_thisloop,trnlabsuse);
                 otherwise
@@ -255,29 +223,8 @@ for cv=1:nruns
         
         %use it to predict on test set
         switch classstr
-%             case 'svmtrain_lin'
-%                 obj=svmtrain(trnlabsuse,trnuse,'-t 0 -q');
-%                 thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%             case 'svmtrain_poly'
-%                 obj=svmtrain(trnlabsuse,trnuse,'-t 1 -q');
-%                 thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%             case 'svmtrain_RBF'
-%                 obj=svmtrain(trnlabsuse,trnuse,'-t 2 -q');
-%                 thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%             case 'svmtrain_sig'
-%                 obj=svmtrain(trnlabsuse,trnuse,'-t 3 -q');
-%                 thesepredlabs=svmpredict(tstlabs_thisloop,tstdat_thisloop,obj);
-%             case 'fitcdiscr'
-%                 obj=fitcdiscr(trnuse,trnlabsuse);
-%                 thesepredlabs=predict(obj,tstdat_thisloop);
-%             case 'classify_diaglinear'
-%                 thesepredlabs = classify(tstdat_thisloop,trnuse,trnlabsuse,'diagLinear');
-%             case 'classify_mahal'
-%                 thesepredlabs = classify(tstdat_thisloop,trnuse,trnlabsuse,'mahalanobis');
             case 'eucDist'
                 [thesepredlabs,distAll] = eucDistClass(trnuse,tstdat_thisloop,trnlabsuse);
-%             case 'ideal_observer'
-%                 [thesepredlabs,~] = ideal_observer(trnuse,tstdat_thisloop,trnlabsuse);
             case 'normEucDist'
                 [thesepredlabs,distAll] = normEucDistClass(trnuse,tstdat_thisloop,trnlabsuse);
             otherwise
@@ -314,7 +261,7 @@ acc = mean(accAll);
 dprime = mean(dAll);
 
 % get mean confidence over all balance iterations
-% will be nTrials x nClasses
+% will be [nTrials x nClasses]
 distEachClass = mean(alldist,3);
 
 %% get predicted labels

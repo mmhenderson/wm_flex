@@ -1,6 +1,6 @@
 function [label,normEucDistAll] = normEucDistClass( train, test, group )
 % Calculate the NORMALIZED Euclidean distance for each trial in "test" to each of the
-% groups defined in "train"
+% groups defined in "train" - use this to do decoding.
 
 % IN: 
     % train is [nTrialsTraining x nVoxels];

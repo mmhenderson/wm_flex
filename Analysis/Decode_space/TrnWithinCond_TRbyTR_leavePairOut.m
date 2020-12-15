@@ -1,7 +1,13 @@
-% MMH 10/29/20
+%% Spatial decoding analysis
+% Train and test linear decoder,using data from one task at a time (leave
+% out a small number of trials at a time).Train/test at each TR for time 
+% resolved decoding accuracy.
+% grouping spatial positions into 8 bins 45 deg wide, then doing binary
+% decoding between bins that are 180 deg apart (e.g. 0 vs 180). 
+% Saves the results in a mat file, can plot it using a separate script
+% (plotTrnWithinCond_TRbyTR.m)
 
-% training/testing on SPATIAL WORKING MEMORY localizer, testing on task data.
-
+%%
 clear
 close all;
 
@@ -13,14 +19,12 @@ nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
-nPermIter=1000;
-
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
-
-% dbstop if error
+% get ready for parallel pool operations
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
@@ -28,6 +32,7 @@ end
 rndseed = 456566;
 rng(rndseed,'twister');
 
+% define the spatial position bins
 nBins=8;
 bin_centers=[0:45:359];
 bin_size=diff(bin_centers(1:2));
@@ -40,6 +45,9 @@ nGroups = size(groups,1);
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
+% also going to do this analyis for "merged" IPS ROIs that combine multiple
+% subregions of IPS at a time. 
+% these get done after all the individual ROIs.
 ips_inds = [6:9];
 ips01_inds=[6,7];
 ips23_inds=[8,9];
@@ -48,8 +56,6 @@ for ss=1:length(sublist)
     allchanresp = [];
 
     substr = sprintf('S%02d',sublist(ss));
-%     fn2load = fullfile(exp_path,'Samples',sprintf('SWMLocSignalByTrial_%s.mat',substr));
-%     load(fn2load);
     fn2load = fullfile(exp_path,'Samples',sprintf('MainTaskSignalByTrial_%s.mat',substr));
     load(fn2load);
     save_dir = fullfile(exp_path,'Analysis','Decode_space','Decoding_results');
@@ -58,10 +64,11 @@ for ss=1:length(sublist)
     end
     fn2save = fullfile(save_dir,sprintf('TrnWithinCond_TRbyTR_leavePairOut_%s_max%dvox_%s.mat',class_str, nVox2Use,substr));
     
-    %% loop over ROIs and run the model for each.
     ROI_names{end+1} = 'IPS0-3';
     ROI_names{end+1} = 'IPS0-1';
     ROI_names{end+1} = 'IPS2-3';
+    
+    %% loop over ROIs and run the model for each.
     for vv = 1:length(ROI_names) 
         
         %% create the merged IPS regions
@@ -102,18 +109,10 @@ for ss=1:length(sublist)
 
             posLabs = mainSig(vv).targPos(inds2use,:);
             allDat = mainSig(vv).dat_by_TR(inds2use,:,:); % [nTrials x nTRs x nVox]
-            % trying to get rid of baseline shifts here. do subtraction within
+            % subtract mean over voxels. do subtraction within
             % a TR only. 
             allDat = allDat - repmat(mean(allDat,3), 1, 1, size(allDat,3));
-    %         
-            runLabs = mainSig(vv).runLabs;
-            runLabs = runLabs(inds2use);
 
-%             sessLabs = ones(size(runLabs));
-%             sessLabs(runLabs>10) = 2;
-%             cvLabs = sessLabs;
-%             nCV = numel(unique(cvLabs));
-            
             if vv==1 && cc==1
                 % preallocate array here
                 nTRs=size(allDat,2);
@@ -134,6 +133,10 @@ for ss=1:length(sublist)
                 binLabs(inds_this_bin) = bb;
             end
             neach_tst = sum(repmat(binLabs,1,nBins)==repmat((1:nBins),size(binLabs,1),1));
+            % note that the number of trials in each of these 8 bins is not
+            % exactly equal - however, the bins that are 180 deg apart
+            % always have the same number of trials. So each decoder always
+            % has perfectly balanced training set.
             assert(~any(binLabs==0))
 
             % create cross-validation labels
@@ -191,11 +194,11 @@ for ss=1:length(sublist)
                     cv_this_group = cvLabs(inds2use);
                     
                     runs_using = unique(cv_this_group);
-                    % train/test the decoder
+                    % train/test the decoder - use a custom function to do
+                    % cross-validation here. 
                     [~,~,thesepredlabs,normEucDist] = my_classifier_cross_wconf(dat_this_group,group_labs,...
                         cv_this_group,dat_this_group, group_labs,...
-                        cv_this_group,class_str,100,nVox2Use_now,voxStatTable(:,runs_using),1);
-%                     [thesepredlabs,normEucDist] = normEucDistClass(allDatUse,tstDatUse,reallabs);
+                        cv_this_group,class_str,100,nVox2Use_now,voxStatTable(:,runs_using),0);
 
                     % compute accuracy on the subset of test trials in each
                     % condition separately                  
@@ -218,29 +221,29 @@ for ss=1:length(sublist)
                     % now doing the permutation test, shuffle labels 1000 times.
                     randaccs = nan(nPermIter, 1);
                     randd = nan(nPermIter, 1);
-                  
-                    parfor ii=1:nPermIter
-                        % randomize all labels (note this is across all runs,
-                        % so we're shuffling training and testing sets at once.
-                        randlabs=nan(size(group_labs));
+                    % doing the shuffling before parfor loop
+                    randlabs_all = zeros(size(group_labs,1),nPermIter);
+                    for ii=1:nPermIter
                         for cv=1:numel(runs_using)
                             % shuffle the data from one cross-validation fold at a time, so we
-                            % don't un-balance the training sets. 
+                            % don't un-balance the training sets.
                             inds=cv_this_group==runs_using(cv);
                             dat2shuff=group_labs(inds);
-                            randlabs(inds) = dat2shuff(randperm(numel(dat2shuff)));
-                        end                  
+                            randlabs_all(inds,ii) = dat2shuff(randperm(numel(dat2shuff)));
+                        end
+                    end
+                    parfor ii=1:nPermIter
+                        randlabs=randlabs_all(:,ii);
                         % run classifier with the random labels
-                        % train/test the decoder
                         [~,~,thesepredlabs,normEucDist] = my_classifier_cross_wconf(dat_this_group,randlabs,...
                             cv_this_group,dat_this_group, randlabs,...
-                            cv_this_group,class_str,100,nVox2Use_now,voxStatTable(:,runs_using),1);
+                            cv_this_group,class_str,100,nVox2Use_now,voxStatTable(:,runs_using),0);
                         % get performance in each condition, for the random decoder
                         randaccs(ii) = mean(thesepredlabs==group_labs);                        
                         randd(ii) = get_dprime(thesepredlabs,group_labs,unique(group_labs));
                        
                     end
-
+                    
                     % put everything into a big array for saving
                     allacc_rand(vv,cc,gg,tr,:) = randaccs;                   
                     alld_rand(vv,cc,gg,tr,:) = randd;

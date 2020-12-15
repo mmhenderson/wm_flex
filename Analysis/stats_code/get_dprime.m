@@ -3,7 +3,6 @@ function dprime = get_dprime(predlabs,reallabs,un)
 % works for multiple classes
 % un is the list of classes in the actual data set
 
-
 if length(predlabs)~=length(reallabs)
     error('real and predicted labels do not match')
 end
@@ -12,8 +11,6 @@ hrz=zeros(length(un),1);
 fpz=zeros(length(un),1);
 
 nTrials = length(predlabs);
-
-
 
 %loop over class labels, get a hit rate and false pos for each (treating
 %any other category as non-hit)

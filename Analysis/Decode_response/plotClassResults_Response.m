@@ -55,7 +55,7 @@ condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
 plotVisMotorAcc = 1;
-plotPrevalence=1;
+plotPrevalence=0;
 plotMDAcc=1;
 %% load results
 
@@ -339,7 +339,7 @@ if plotVisMotorAcc
         % add significance of individual areas/conditions
         for cc=1:nConds
             for aa=1:numel(alpha_vals)
-                if p_sr(vv,cc)<alpha_vals(aa)
+                if p_sr(vismotor_inds(vv),cc)<alpha_vals(aa)
                     % smaller dots get over-drawn with larger dots
                     plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
                 end
@@ -347,7 +347,7 @@ if plotVisMotorAcc
         end
         % add significance of condition differences
         for aa=1:numel(alpha_vals)
-            if p_diff(vv)<alpha_vals(aa)
+            if p_diff(vismotor_inds(vv))<alpha_vals(aa)
                 [mx,maxind] = max(meanVals(vv,:));
                 % smaller dots get over-drawn with larger dots
                 plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
@@ -372,7 +372,79 @@ saveas(gcf,fullfile(figpath,'DecodeCorrectResp_allareas.pdf'),'pdf');
 %% make a bar plot of acc - md areas
 if plotMDAcc
     
-    plot_barsAndStars(meanvals(md_inds,:),semvals(md_inds,:),is_sig(md_inds,:),...
-        diff_is_sig(md_inds),chance_val,acclims,md_names,condLabStrs,...
-        'Accuracy','Response (expected)',col);
+    
+    meanVals=meanvals(md_inds,:);
+    seVals=semvals(md_inds,:);
+    
+    sub_colors = gray(nSubj+1);
+    set(groot,'DefaultLegendAutoUpdate','off');
+    fh = figure();hold on;
+    % first make the actual bar plot
+    b = bar(gca,meanVals);
+    lh=[b(1),b(2)];
+    
+    % have to set this to "modal", otherwise it fails to get the XOffset
+    % property.
+    set(fh, 'WindowStyle','modal','WindowState','minimized')
+    bar_offset = [b.XOffset];
+    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
+    for cc=1:nConds
+        b(cc).FaceColor = col(cc,:);
+        b(cc).EdgeColor = col(cc,:);
+        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
+                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
+    end
+
+    set(gca,'XTick', 1:numel(md_inds))
+    set(gca,'XTickLabel', md_names,'XTickLabelRotation',90);
+    ylabel('Accuracy')
+    set(gca,'YLim',acclims)
+    set(gca,'XLim',[0,numel(md_inds)+1])
+    if chance_val~=0
+        line([0,numel(md_inds)+1],[chance_val,chance_val],'Color','k');
+    end
+    set(gca,'FontSize',fs);
+    set(gcf,'Position',[800,800,1200,500]);
+    % get locations of bars w offsets
+    c=get(gcf,'Children');b=get(c(end),'Children');
+   
+    verspacerbig = range(acclims)/50;
+    horspacer = abs(diff(bar_offset))/2;
+%     
+    for vv=1:numel(md_inds)
+        % add individual subjects
+        for ss=1:nSubj
+            subvals = squeeze(acc_allsubs(ss,md_inds(vv),:));
+            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
+            uistack(h,'bottom');
+        end
+        % add significance of individual areas/conditions
+        for cc=1:nConds
+            for aa=1:numel(alpha_vals)
+                if p_sr(md_inds(vv),cc)<alpha_vals(aa)
+                    % smaller dots get over-drawn with larger dots
+                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+                end
+            end
+        end
+        % add significance of condition differences
+        for aa=1:numel(alpha_vals)
+            if p_diff(md_inds(vv))<alpha_vals(aa)
+                [mx,maxind] = max(meanVals(vv,:));
+                % smaller dots get over-drawn with larger dots
+                plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
+                plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
+                
+            end
+            if vv==1
+                lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
+            end
+        end
+    end
+    b(end).BarWidth=bw;
+    b(end-1).BarWidth=bw;
+    leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+    set(gcf,'color','white')
+    set(gcf, 'WindowStyle','normal','WindowState','normal')
+
 end

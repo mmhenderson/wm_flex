@@ -1,11 +1,16 @@
-% MMH 10/29/20
-
-% training/testing on SPATIAL WORKING MEMORY localizer, testing on task data.
-
+%% Spatial decoding analysis
+% Train and test linear decoder, using data from independent spatial
+% working memory mapping task as training set and testing within each
+% condition of main task. Test at each TR for time resolved decoding.
+% grouping spatial positions into 8 bins 45 deg wide, then doing binary
+% decoding between bins that are 180 deg apart (e.g. 0 vs 180). 
+% Saves the results in a mat file, can plot it using a separate script
+% (plotTrnSWM_TstWM_TRbyTR.m)
+%%
 clear
 close all;
 
-sublist = [7];
+sublist = [2:7];
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
 filesepinds = find(mypath==filesep);
@@ -13,14 +18,12 @@ nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
-nPermIter=1000;
-
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
-
-% dbstop if error
+% get ready for parallel pool operations
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
@@ -28,6 +31,7 @@ end
 rndseed = 121323;
 rng(rndseed,'twister');
 
+% define the spatial position bins
 nBins=8;
 bin_centers=[0:45:359];
 bin_size=diff(bin_centers(1:2));
@@ -39,8 +43,6 @@ nConds=2;
 
 for ss=1:length(sublist)
     
-    allchanresp = [];
-
     substr = sprintf('S%02d',sublist(ss));
     fn2load = fullfile(exp_path,'Samples',sprintf('SWMLocSignalByTrial_%s.mat',substr));
     load(fn2load);
@@ -66,15 +68,15 @@ for ss=1:length(sublist)
         %% pull out the data for localizer (training), and main task (testing)
         trnPosLabs = locSig(vv).TargPos;
         trnDat = locSig(vv).dat_avg;
-        % trying to get rid of baseline shifts here.
+        % subtract mean over voxels
         trnDat = trnDat - repmat(mean(trnDat,2), 1, size(trnDat,2));
 
         tstPosLabs = mainSig(vv).targPos;
         tstDat = mainSig(vv).dat_by_TR; % [nTrials x nTRs x nVox]
-        % trying to get rid of baseline shifts here. do subtraction within
+        % subtract mean over voxels. do subtraction within
         % a TR only. 
         tstDat = tstDat - repmat(mean(tstDat,3), 1, 1, size(tstDat,3));
-%         
+         
         condLabs = mainSig(vv).condLabs;
 
         if vv==1
@@ -171,9 +173,14 @@ for ss=1:length(sublist)
                 randaccs_cond2 = nan(nPermIter, 1);
                 randd_cond1 = nan(nPermIter, 1);
                 randd_cond2 = nan(nPermIter, 1);
+                % doing the shuffling before parfor loop 
+                randlabs_all = zeros(size(reallabstrn,1),nPermIter);
+                for ii=1:nPermIter
+                    randlabs_all(:,ii) = reallabstrn(randperm(numel(reallabstrn)));
+                end  
                 parfor ii=1:nPermIter
                     % randomize training set labels
-                    randlabstrn = reallabstrn(randperm(numel(reallabstrn)));               
+                    randlabstrn = randlabs_all(:,ii);              
                     % run classifier with the random labels
                     [thesepredlabs,~] = normEucDistClass(trnDatUse,tstDatUse,randlabstrn);
                     % get performance in each condition, for the random decoder
@@ -182,7 +189,8 @@ for ss=1:length(sublist)
                     randd_cond1(ii) = get_dprime(thesepredlabs(tstconds==1),reallabstst(tstconds==1),unique(reallabstst));
                     randd_cond2(ii) = get_dprime(thesepredlabs(tstconds==2),reallabstst(tstconds==2),unique(reallabstst));
                 end
-
+                
+                 
                 % put everything into a big array for saving
                 allacc_rand(vv,1,gg,tr,:) = randaccs_cond1;
                 allacc_rand(vv,2,gg,tr,:) = randaccs_cond2;

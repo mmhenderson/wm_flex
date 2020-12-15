@@ -1,10 +1,5 @@
-%% Plot accuracy of spatial decoder
-% trained within each condition of main task. Trained and tested across
-% timepoints - so get a full [nTR x nTR] temporal generalization matrix.
-% Decoding analysis itself performed in TrnWithinCond_AcrossTime_leavePairOut.m
-% and saved as mat file. 
-% This script loads that file, does all stats and plotting. 
-%%
+% script to plot the result of decoding analyses for oriSpin. 
+
 clear
 close all;
 
@@ -14,15 +9,12 @@ nSubj = length(sublist);
 curr_dir = pwd;
 
 % names of the ROIs 
-% the last three areas in the list are merged subregions of IPS (either all
-% subregions together or two subregions at a time). 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
      'S1','M1','Premotor',...
-    'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1-S1 all',...
-    'IPS0-3','IPS0-1','IPS2-3'};
+    'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1-S1 all'};
 
-% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
-plot_order = [1:5,10,11,6:9,22:24];  % visual ROIs
+plot_order = [12:14];  % visual ROIs
+% plot_order=[4,5];
 plot_names = ROI_names(plot_order);
 
 nROIs = length(plot_order);
@@ -37,36 +29,45 @@ acclims = [0.4,1];
 dprimelims = [-0.2, 1.4];
 col = plasma(5);
 col = col(2:2:end-1,:);
+% cc=1;
 
 % events to plot as vertical lines
 evts2plot = [3.5, 4.5, 16.5, 18.5];
 chance_val=0.5;
 
+sig_heights = [0.91,0.93,0.97];
+diff_col=[0.5, 0.5, 0.5];
+
 fs=12;  % font size for all plots
+ms=10;  % marker size for significance dots
 %% load results
 nTRs_out = 30;
 trDur = 0.8;
-tax = trDur*(0:nTRs_out-1); % time axis, how many seconds is each TR
+tax = trDur*(0:nTRs_out-1);
 lw =1;
+
 
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
+
 acc_allsubs = nan(nSubj,nROIs,nConds,nTRs_out, nTRs_out);
 d_allsubs = nan(nSubj,nROIs,nConds,nTRs_out, nTRs_out);
+% accrand_allsubs = nan(nSubj, nVOIs, nConds, nTRs_out, nPermIter);
 
 for ss=1:length(sublist)
 
     substr = sprintf('S%02d',sublist(ss));
     
+    
     save_dir = fullfile(curr_dir,'Decoding_results');
-    fn2load = fullfile(save_dir,sprintf('TrnWithinCond_AcrossTime_leavePairOut_%s_max%dvox_%s.mat',class_str,nVox2Use,substr));
+%     fn2load = fullfile(save_dir,sprintf('TrnWithinCond_AcrossTime_%s_max%dvox_%s.mat',class_str,nVox2Use,substr));
+    fn2load = fullfile(save_dir,sprintf('ClassifyResponse_AcrossTime_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     assert(size(allacc,1)==numel(ROI_names))
-    % averaging decoding performance over the four decoding schemes (0 vs
-    % 180, 45 versus 225, etc)
-    acc_allsubs(ss,:,:,:,:) = mean(squeeze(allacc(plot_order,:,:,:,:)),3);
-    d_allsubs(ss,:,:,:,:) = mean(squeeze(alld(plot_order,:,:,:,:)),3);    
+    acc_allsubs(ss,:,:,:,:) = squeeze(allacc(plot_order,:,:,:));
+    d_allsubs(ss,:,:,:,:) = squeeze(alld(plot_order,:,:,:));
+    
     
 end
 
@@ -74,7 +75,7 @@ assert(~any(isnan(acc_allsubs(:))))
 assert(~any(isnan(d_allsubs(:))))
 
 
-%% Now make a plot for each ROI
+%% Now make a plot for each ROI of interest
 
 my_clim=[0.33, 0.865];
 minval=1;
@@ -135,23 +136,31 @@ for vi = 1:numel(plot_order)
             plot([loc,loc],get(gca,'YLim'),'-','Color','k')
             plot(get(gca,'XLim'),[loc,loc],'-','Color','k')
             
-        end      
-        set(gca, 'FontSize', fs, 'XLim',[0.5, size(meanvals,1)+0.5],'YLim',[0.5, size(meanvals,1)+0.5])        
+        end
+      
+        set(gca, 'FontSize', fs, 'XLim',[0.5, size(meanvals,1)+0.5],'YLim',[0.5, size(meanvals,1)+0.5])
+        
         xlabel('Testing timept (s)');
         ylabel('Training timept (s)');
+         
 
+        
+      
     end
     suptitle(sprintf('%s\nTrain within condition',plot_names{vi}));
     set(gcf,'Color','w')
     set(gcf,'Position',[200,200,1200,800])
-    c=get(gcf,'Children');  
-    % trying to make subplots line up in width...
+    c=get(gcf,'Children');   
     % 7 is the first condition diagonals
     % 6 is the first condition matrix
     % 4 is the second condition diagonals
     % 2 is the second condition matrix
+%     c(7).Position(1) = c(6).Position(1);
+%     c(7).Position(3) = c(6).Position(3);
     c(7).OuterPosition(1) = c(6).OuterPosition(1);
     c(7).OuterPosition(3) = c(6).OuterPosition(3);
+%     c(4).Position(1) = c(2).Position(1);  
+%     c(4).Position(3) = c(2).Position(3);
     c(4).OuterPosition(1) = c(2).OuterPosition(1);
     c(4).OuterPosition(3) = c(2).OuterPosition(3);
 end

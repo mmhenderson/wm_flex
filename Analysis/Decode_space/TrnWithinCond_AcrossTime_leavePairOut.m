@@ -1,11 +1,17 @@
-% MMH 10/29/20
-
-% training/testing on SPATIAL WORKING MEMORY localizer, testing on task data.
-
+%% Spatial decoding analysis
+% Train and test linear decoder, using data from one task at a time (leave
+% out a small number of trials at a time). Train and test across timepts
+% (each TR serves as a training set for each other TR to give a full [nTR x
+% nTR] matrix)
+% grouping spatial positions into 8 bins 45 deg wide, then doing binary
+% decoding between bins that are 180 deg apart (e.g. 0 vs 180). 
+% Saves the results in a mat file, can plot it using a separate script
+% (plotTrnWithinCond_AcrossTime.m)
+%%
 clear
 close all;
 
-sublist = [7];
+sublist = [2:7];
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
 filesepinds = find(mypath==filesep);
@@ -13,21 +19,13 @@ nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
-nPermIter=1000;
-
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
 
-% dbstop if error
-numcores = 8;
-if isempty(gcp('nocreate'))
-    parpool(numcores);
-end
-rndseed = 565645;
-rng(rndseed,'twister');
-
+% define the spatial position bins
 nBins=8;
 bin_centers=[0:45:359];
 bin_size=diff(bin_centers(1:2));
@@ -36,20 +34,18 @@ bin_size=diff(bin_centers(1:2));
 groups = [(1:4)',(5:8)'];
 nGroups = size(groups,1);
 
-
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
+% also going to do this analyis for "merged" IPS ROIs that combine multiple
+% subregions of IPS at a time. 
+% these get done after all the individual ROIs.
 ips_inds = [6:9];
 ips01_inds=[6,7];
 ips23_inds=[8,9];
 for ss=1:length(sublist)
-    
-    allchanresp = [];
 
     substr = sprintf('S%02d',sublist(ss));
-%     fn2load = fullfile(exp_path,'Samples',sprintf('SWMLocSignalByTrial_%s.mat',substr));
-%     load(fn2load);
     fn2load = fullfile(exp_path,'Samples',sprintf('MainTaskSignalByTrial_%s.mat',substr));
     load(fn2load);
     save_dir = fullfile(exp_path,'Analysis','Decode_space','Decoding_results');
@@ -58,10 +54,11 @@ for ss=1:length(sublist)
     end
     fn2save = fullfile(save_dir,sprintf('TrnWithinCond_AcrossTime_leavePairOut_%s_max%dvox_%s.mat',class_str, nVox2Use,substr));
     
-    %% loop over ROIs and run the model for each.
     ROI_names{end+1} = 'IPS0-3';
     ROI_names{end+1} = 'IPS0-1';
     ROI_names{end+1} = 'IPS2-3';
+    
+    %% loop over ROIs and run the model for each.    
     for vv = 1:length(ROI_names) 
          
          %% create the merged IPS regions
@@ -103,30 +100,16 @@ for ss=1:length(sublist)
 
             posLabs = mainSig(vv).targPos(inds2use,:);
             allDat = mainSig(vv).dat_by_TR(inds2use,:,:); % [nTrials x nTRs x nVox]
-            % trying to get rid of baseline shifts here. do subtraction within
-            % a TR only. 
+            % remove mean over voxels, within each TR
             allDat = allDat - repmat(mean(allDat,3), 1, 1, size(allDat,3));
-    %         
-            runLabs = mainSig(vv).runLabs;
-            runLabs = runLabs(inds2use);
 
-%             sessLabs = ones(size(runLabs));
-%             sessLabs(runLabs>10) = 2;
-%             cvLabs = sessLabs;
-%             nCV = numel(unique(cvLabs));
-            
             if vv==1 && cc==1
                 % preallocate array here
                 nTRs=size(allDat,2);
                 allacc = nan(length(ROI_names), nConds, nGroups, nTRs, nTRs);
                 alld = nan(length(ROI_names), nConds, nGroups, nTRs, nTRs);
-%                 allconf = nan(length(ROI_names), numel(condLabs), nTRs);
-%                 allacc_rand = nan(length(ROI_names), nConds, nGroups, nTRs, nPermIter);
-%                 alld_rand = nan(length(ROI_names), nConds, nGroups, nTRs, nPermIter);
             end
 
-%             conf_this_cond = nan(numel(posLabs),nTRs);
-            
             % bin these for classifier - want 8 bins that are roughly centered at
             % 0, 45, 90, 135,...
             binLabs = zeros(size(posLabs));        
@@ -157,8 +140,13 @@ for ss=1:length(sublist)
                 dat2use_trn = squeeze(allDat(:,tr_trn,:));
                 
                 %% voxel selection from the training set 
-                if ~isempty(nVox2Use) && nVox2Use<size(dat2use_trn,3)
-                    fprintf('running voxel selection f-test for %s %s: %s condition, train tr=%d\n',substr, ROI_names{vv},condLabsStrs{cc}, tr_trn)
+                if ~isempty(nVox2Use) && nVox2Use<size(dat2use_trn,2)
+                    % get ready for parallel pool operations
+                    numcores = 8;
+                    if isempty(gcp('nocreate'))
+                        parpool(numcores);
+                    end
+                    fprintf('running voxel selection f-test for %s %s: %s condition, train tr=%d\n',substr, ROI_names{vv},condLabStrs{cc}, tr_trn)
                     voxStatTable = zeros(size(dat2use_trn,2),nCV);
                     for rr = 1:nCV
                         inds = cvLabs~=rr;
@@ -204,10 +192,8 @@ for ss=1:length(sublist)
                         [~,~,thesepredlabs,normEucDist] = my_classifier_cross_wconf(trndat_this_group,group_labs,...
                             cv_this_group,tstdat_this_group, group_labs,...
                             cv_this_group,class_str,100,nVox2Use_now,voxStatTable(:,runs_using),1);
-    %                     [thesepredlabs,normEucDist] = normEucDistClass(allDatUse,tstDatUse,reallabs);
 
-                        % compute accuracy on the subset of test trials in each
-                        % condition separately                  
+                        % compute accuracy                 
                         allacc(vv,cc,gg,tr_trn,tr_tst) = mean(thesepredlabs==group_labs);
                         alld(vv,cc,gg,tr_trn,tr_tst) = get_dprime(thesepredlabs,group_labs,unique(group_labs));
 

@@ -1,5 +1,9 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of spatial decoder
+% trained within each condition of main task. Time-resolved (TR by TR)
+% Decoding analysis itself performed in TrnWithinCond_TRbyTR_leavePairOut.m
+% and saved as mat file. 
+% This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -15,21 +19,22 @@ addpath(fullfile(exp_path,'Analysis','stats_code'))
 addpath(fullfile(exp_path,'Analysis','stats_code','bayesian-prevalence','matlab'))
 
 % names of the ROIs 
+% the last three areas in the list are merged subregions of IPS (either all
+% subregions together or two subregions at a time). 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all',...
     'IPS0-3','IPS0-1','IPS2-3'};
 
-
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
 plot_order = [1:5,10,11,6:9];  % vis areas
 vis_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
 vis_inds = find(ismember(plot_order_all,plot_order));
 nROIs = length(plot_order_all);
 
-plotVisAcc=1;
-plotVisAccSS=1;
-plotVisDSS=1;
+plotVisAcc=1;   % plot subject-averaged decoding acc w error bars?
+plotVisAccSS=1;  % plot single-subject decoding performance for each cond over time?
 
 nVox2Use = 10000;
 nPermIter=1000;
@@ -80,6 +85,8 @@ for ss=1:length(sublist)
     fn2load = fullfile(save_dir,sprintf('TrnWithinCond_TRbyTR_leavePairOut_%s_max%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     assert(size(allacc,1)==numel(ROI_names));
+    % averaging decoding performance over the four decoding schemes (0 vs
+    % 180, 45 versus 225, etc)
     acc_allsubs(ss,:,:,:) = squeeze(mean(allacc(plot_order_all,:,:,:),3));
     d_allsubs(ss,:,:,:) = squeeze(mean(alld(plot_order_all,:,:,:),3));
     
@@ -96,7 +103,7 @@ meanvals = squeeze(mean(vals,1));
 semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
 randvals = accrand_allsubs;
 
-% which areas did we do significance test on? not all, because it was slow
+% which areas did we do significance test on? should be all
 inds2test = ~isnan(squeeze(accrand_allsubs(1,:,1,1,1)));
 
 %% Wilcoxon signed rank test
@@ -137,7 +144,7 @@ array2table(squeeze(p_sr(vis_inds,2,1:15)),...
 array2table(squeeze(p_sr(vis_inds,2,16:30)),...
     'RowNames',vis_names,'VariableNames',strseq('Rand_TR',16:30))
 
-%% now doing pairwise condition comparisons - paired t-test.
+%% pairwise condition comparisons
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
@@ -148,20 +155,14 @@ rng(rndseed,'twister')
 real_sr_stat = nan(nROIs,nTRs_out);
 rand_sr_stat = nan(nROIs, nTRs_out, nPermIter);
 
-% p_diff_sr=nan(nROIs,nTRs_out);
 for vv=1:nROIs
     for tr=1:nTRs_out
         realvals = squeeze(vals(:,vv,:,tr));
-%         [p,h,stats]=signrank(realvals(:,1),realvals(:,2));
-%         p_diff_sr(vv,tr) = p;
         % what is the sign-rank statistic for the real data?
         real_sr_stat(vv,tr) = signrank_MMH(realvals(:,1),realvals(:,2));
 
-        % determine before the parfor loop which conditions get randomly
-        % swapped on each iteration (otherwise not deterministic)
         inds2swap = double(randn(nSubj,nPermIter)>0);
         inds2swap(inds2swap==0) = -1;
-
         parfor ii=1:nPermIter          
 
             % randomly permute the condition labels within subject
@@ -249,83 +250,46 @@ saveas(gcf,fullfile(figpath,'TrainSWM_TestWM_allareas_overtime.pdf'),'pdf');
 
 %%
 if plotVisAccSS
-    sub_colors=viridis(nSubj+1);
-    nplots_vis = ceil(sqrt(numel(vis_inds)));
-    figure();hold all;
-    lims=[0.3, 1];
-    for vi = 1:numel(vis_inds)
-       
-        subplot(nplots_vis,ceil(numel(vis_inds)/nplots_vis),vi);hold all;
+    for cc=1:nConds
+        sub_colors=viridis(nSubj+1);
+        nplots_vis = ceil(sqrt(numel(vis_inds)));
+        figure();hold all;
+        lims=[0.3, 1];
+        for vi = 1:numel(vis_inds)
 
-        cc=1;
-        valsplot = acc_allsubs(:,vis_inds(vi),cc,:);
-        lh=[];
-        substrs=[];
-        for ss=1:nSubj
-            lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
-            substrs{ss} = sprintf('S%02d',sublist(ss));
-        end
+            subplot(nplots_vis,ceil(numel(vis_inds)/nplots_vis),vi);hold all;
 
-        set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
-        ylim(lims);
-        plot(get(gca,'XLim'),[chance_val,chance_val],'-','Color',[0.8, 0.8, 0.8]);
-        for ee = 1:length(evts2plot)
-            plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
-        end
-        
-        if vi==1
-            xlabel('Time(s)');
-            ylabel('Accuracy');
-        end
 
-        if vi==numel(vis_inds)
-            legend(lh,substrs,'FontSize', fs);
+            valsplot = acc_allsubs(:,vis_inds(vi),cc,:);
+            lh=[];
+            substrs=[];
+            for ss=1:nSubj
+                lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
+                substrs{ss} = sprintf('S%02d',sublist(ss));
+            end
+
+            set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
+            ylim(lims);
+            plot(get(gca,'XLim'),[chance_val,chance_val],'-','Color',[0.8, 0.8, 0.8]);
+            for ee = 1:length(evts2plot)
+                plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
+            end
+
+            if vi==1
+                xlabel('Time(s)');
+                ylabel('Accuracy');
+            end
+
+            if vi==numel(vis_inds)
+                legend(lh,substrs,'FontSize', fs);
+            end
+
+            title(sprintf('%s', vis_names{vi}));
+
         end
-       
-        title(sprintf('%s', vis_names{vi}));
-      
+        set(gcf,'Color','w')
+        set(gcf,'Position',[200,200,1800,1200]);
+        suptitle(condLabStrs{cc})
     end
-    set(gcf,'Color','w')
-    set(gcf,'Position',[200,200,1800,1200]);
 end
-%%
-if plotVisDSS
-    sub_colors=viridis(nSubj+1);
-    nplots_vis = ceil(sqrt(numel(vis_inds)));
-    figure();hold all;
-    lims=[-1,3];
-    for vi = 1:numel(vis_inds)
-       
-        subplot(nplots_vis,ceil(numel(vis_inds)/nplots_vis),vi);hold all;
 
-        cc=1;
-        valsplot = d_allsubs(:,vis_inds(vi),cc,:);
-        lh=[];
-        substrs=[];
-        for ss=1:nSubj
-            lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
-            substrs{ss} = sprintf('S%02d',sublist(ss));
-        end
-
-        set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
-        ylim(lims);
-        plot(get(gca,'XLim'),[0,0],'-','Color',[0.8, 0.8, 0.8]);
-        for ee = 1:length(evts2plot)
-            plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
-        end
-        
-        if vi==1
-            xlabel('Time(s)');
-            ylabel('Dprime');
-        end
-
-        if vi==numel(vis_inds)
-            legend(lh,substrs,'FontSize', fs);
-        end
-       
-        title(sprintf('%s', vis_names{vi}));
-      
-    end
-    set(gcf,'Color','w')
-    set(gcf,'Position',[200,200,1800,1200]);
-end

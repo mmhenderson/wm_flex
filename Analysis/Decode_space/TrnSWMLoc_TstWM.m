@@ -1,11 +1,16 @@
-% MMH 10/29/20
-
-% training/testing on SPATIAL WORKING MEMORY localizer, testing on task data.
-
+%% Spatial decoding analysis
+% Train and test linear decoder, using data from independent spatial
+% working memory mapping task as training set and testing within each
+% condition of main task. 
+% grouping spatial positions into 8 bins 45 deg wide, then doing binary
+% decoding between bins that are 180 deg apart (e.g. 0 vs 180). 
+% Saves the results in a mat file, can plot it using a separate script
+% (plotTrnSWM_TstWM.m)
+%%
 clear
 close all;
 
-sublist = [7];
+sublist = [2:7];
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
 filesepinds = find(mypath==filesep);
@@ -13,13 +18,12 @@ nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
-nPermIter = 1000;
-
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
-
+% get ready for parallel pool operations
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
@@ -27,6 +31,7 @@ end
 rndseed = 324454;
 rng(rndseed,'twister');
 
+% define the spatial position bins
 nBins=8;
 bin_centers=[0:45:359];
 bin_size=diff(bin_centers(1:2));
@@ -37,8 +42,6 @@ nGroups = size(groups,1);
 nConds=2;
 
 for ss=1:length(sublist)
-    
-    allchanresp = [];
 
     substr = sprintf('S%02d',sublist(ss));
     fn2load = fullfile(exp_path,'Samples',sprintf('SWMLocSignalByTrial_%s.mat',substr));
@@ -65,14 +68,14 @@ for ss=1:length(sublist)
         %% pull out the data for localizer (training), and main task (testing)
         trnPosLabs = locSig(vv).TargPos;
         trnDat = locSig(vv).dat_avg;
-        % trying to get rid of baseline shifts here.
+        % subtract mean over voxels
         trnDat = trnDat - repmat(mean(trnDat,2), 1, size(trnDat,2));
 
         tstPosLabs = mainSig(vv).targPos;
         tstDat = mainSig(vv).dat_avg;
-        % trying to get rid of baseline shifts here.
+        % subtract mean over voxels
         tstDat = tstDat - repmat(mean(tstDat,2), 1, size(tstDat,2));
-%         
+         
         condLabs = mainSig(vv).condLabs;
         dist_to_bound = mainSig(vv).dist_to_real_bound;
         
@@ -104,8 +107,7 @@ for ss=1:length(sublist)
         end
         assert(~any(tstBinLabs==0))
         neach_tst = sum(repmat(tstBinLabs,1,nBins)==repmat((1:nBins),size(tstBinLabs,1),1));
-%         assert(all(neach==neach(1)));
-        
+
         %% voxel selection from the training set 
        
         if ~isempty(nVox2Use) && nVox2Use<size(trnDat,2)
@@ -136,9 +138,8 @@ for ss=1:length(sublist)
             reallabstrn = trnBinLabs(inds2use_trn);
             trnDatUse = trnDat(inds2use_trn, vox2use);
             tstDatUse = tstDat(inds2use_tst, vox2use);
+            
             % train/test the decoder
-%             fprintf('group %d: %.2f in bin 1, %.2f in bin 2\n',gg,mean(trnBinLabs(inds2use_trn)==groups(gg,1)), ...
-%                 mean(trnBinLabs(inds2use_trn)==groups(gg,2)))
             [thesepredlabs,normEucDist] = normEucDistClass(trnDatUse,tstDatUse,reallabstrn);
             
             % compute accuracy on the subset of test trials in each
@@ -149,7 +150,6 @@ for ss=1:length(sublist)
                 allacc(vv,cc,gg) = mean(thesepredlabs(tstconds==cc)==reallabstst(tstconds==cc));
                 alld(vv,cc,gg) = get_dprime(thesepredlabs(tstconds==cc),reallabstst(tstconds==cc),unique(reallabstst));               
             end
-            
             
             % confidence is the distance to incorrect - distance to
             % correct. want a positive number (far from incorrect)
@@ -169,11 +169,15 @@ for ss=1:length(sublist)
             randaccs_cond2 = nan(nPermIter, 1);
             randd_cond1 = nan(nPermIter, 1);
             randd_cond2 = nan(nPermIter, 1);
-            rndseed = rndseed+1;
+            
+            % doing the shuffling before parfor loop 
+            randlabs_all = zeros(size(reallabstrn,1),nPermIter);
+            for ii=1:nPermIter
+                randlabs_all(:,ii) = reallabstrn(randperm(numel(reallabstrn)));
+            end          
             parfor ii=1:nPermIter
-                rng(rndseed+ii,'twister');
                 % randomize training set labels
-                randlabstrn = reallabstrn(randperm(numel(reallabstrn)));               
+                randlabstrn = randlabs_all(:,ii);                
                 % run classifier with the random labels
                 [thesepredlabs,~] = normEucDistClass(trnDatUse,tstDatUse,randlabstrn);
                 % get performance in each condition, for the random decoder
@@ -182,7 +186,7 @@ for ss=1:length(sublist)
                 randd_cond1(ii) = get_dprime(thesepredlabs(tstconds==1),reallabstst(tstconds==1),unique(reallabstst));
                 randd_cond2(ii) = get_dprime(thesepredlabs(tstconds==2),reallabstst(tstconds==2),unique(reallabstst));
             end
-            
+           
             % put everything into a big array for saving
             allacc_rand(vv,1,gg,:) = randaccs_cond1;
             allacc_rand(vv,2,gg,:) = randaccs_cond2;
