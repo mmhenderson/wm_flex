@@ -14,6 +14,9 @@
 % only need to run this once, it'll put a file in the
 % main preprocessing folder which can be used for all subs. 
 
+% NOTE these ROIs didn't get used in any of our main analyses for this
+% experiment.
+
 % MMH 11/22/19
 %% 
 clear

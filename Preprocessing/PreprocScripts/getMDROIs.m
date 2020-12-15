@@ -3,6 +3,9 @@
 % space into functional space. finally, interesect the definitions in
 % functional space with the activated regions from MD localizer task.
 
+% NOTE these ROIs didn't get used in any of our main analyses for this
+% experiment.
+
 % MMH 11/26/19
 %%
 
