@@ -146,7 +146,7 @@ for ss=1:length(sublist)
                         % don't un-balance the training sets. 
                         inds=trnCV==se;
                         dat2shuff=trnLabs(inds);
-                        randlabs_all(inds) = dat2shuff(randperm(numel(dat2shuff)));
+                        randlabs_all(inds,ii) = dat2shuff(randperm(numel(dat2shuff)));
                     end                 
                 end  
                 parfor ii=1:nPermIter
@@ -161,7 +161,7 @@ for ss=1:length(sublist)
                     randd(ii) = get_dprime(predLabs,randlabs,unique(randlabs));
 
                 end
-                randaccs(1)
+       
             else
                 fprintf('%s %s tr=%d, performance on real data is %.2f, skipping permutation test...\n',...
                 substr,ROI_names{vv},tr,allacc(vv,tr))

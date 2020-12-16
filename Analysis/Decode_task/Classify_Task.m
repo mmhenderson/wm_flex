@@ -141,7 +141,7 @@ for ss=1:length(sublist)
                     % don't un-balance the training sets. 
                     inds=trnCV==se;
                     dat2shuff=trnLabs(inds);
-                    randlabs_all(inds) = dat2shuff(randperm(numel(dat2shuff)));
+                    randlabs_all(inds,ii) = dat2shuff(randperm(numel(dat2shuff)));
                 end                 
             end   
             parfor ii=1:nPermIter
