@@ -1,6 +1,7 @@
 %% Plot accuracy of decoder for luminance of disk sides
 % Decoding analysis itself performed in Classify_DiskSide.m and saved as mat
 % file. This script loads that file, does all stats and plotting. 
+% note this analysis is not in our paper.
 %%
 clear
 close all;

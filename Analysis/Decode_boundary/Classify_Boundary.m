@@ -5,6 +5,7 @@
 % Average these two decoding results.
 % This script saves a mat file with decoding performance, can plot it using
 % plotClassResults_Boundary.m
+% note this analysis is not in our paper.
 %%
 clear
 close all;

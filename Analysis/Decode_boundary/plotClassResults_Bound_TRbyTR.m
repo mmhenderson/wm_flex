@@ -1,6 +1,7 @@
 %% Plot accuracy of boundary orientation
 % Decoding analysis itself performed in Classify_Boundary_TRbyTR.m and saved as mat
 % file. This script loads that file, does all stats and plotting. 
+% note this analysis is not in our paper.
 %%
 clear
 close all;
