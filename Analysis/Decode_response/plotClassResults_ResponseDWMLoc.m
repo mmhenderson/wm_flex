@@ -1,5 +1,11 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of response decoder
+% trained and tested using data from digit working memory (DWM)
+% task (button pressing with delayed response).
+% Note this task isn't included in our paper.
+% Decoding analysis itself performed in Classify_Response_DWM.m and 
+% saved as mat file. 
+% This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -19,35 +25,35 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+% reordering them a little for logical x-axis on plots
+plot_order1 = [1:5,10,11,6:9,12:14];  
+% Indices for Multiple-demand ROIs (not included in any of our main 
+% analyses, but can plot results for these separately if you wish).
+plot_order2 = [15:20]; 
 
-plot_order1 = [1:5,10,11,6:9,12:14];  % visual ROIs and motor ROIs
-plot_order2 = [15:20];  % MD areas (not super interested in these)
+plotVisMotorAcc = 1;    % make plots for retinotopic and motor ROIs?
+plotMDAcc=1;    % make plots for MD ROIs?
 
 vismotor_names = ROI_names(plot_order1);
 md_names = ROI_names(plot_order2);
-
 plot_order_all = [plot_order1,plot_order2];
 nROIs = length(plot_order_all);
-
 vismotor_inds = find(ismember(plot_order_all,plot_order1));
 md_inds = find(ismember(plot_order_all,plot_order2));
-
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
 class_str = 'normEucDist';
 
+% parameters for plotting/stats
 alpha_vals=[0.05, 0.01, 0.001];
 alpha_ms = [8,16,24];
 alpha = alpha_vals(1);
 
 acclims = [0.4, 0.9];
 dprimelims = [-0.2, 1.4];
-% col = plasma(5);
-% col = col(2:2:end-1,:);
-% col = [125, 93, 175; 15, 127, 98]./255;
 col = viridis(4);
 col=col(2,:);
 
@@ -56,9 +62,6 @@ diff_col=[0.5, 0.5, 0.5];
 condLabStrs = {'DWMLocTask'};
 nConds = length(condLabStrs);
 
-plotVisMotorAcc = 1;
-plotPrevalence=1;
-plotMDAcc=1;
 %% load results
 
 acc_allsubs = nan(nSubj,nROIs,nConds);
@@ -72,7 +75,6 @@ for ss=1:length(sublist)
     
     save_dir = fullfile(curr_dir,'Decoding_results');
     fn2load = fullfile(save_dir,sprintf('ClassifyResponse_TrnTestDWMLoc_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
-%     fn2load = fullfile(save_dir,sprintf('ClassifyResponse_leavePairOut_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     
     assert(size(allacc,1)==numel(ROI_names))
@@ -203,6 +205,76 @@ if plotVisMotorAcc
     leg=legend(lh,{'DWM Loc Task','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
     set(gcf,'color','white')
     set(gcf, 'WindowStyle','normal','WindowState','normal')
+
+end
+
+
+%% make a bar plot of acc - md areas
+if plotMDAcc
+    
+    
+    meanVals=meanvals(md_inds,:);
+    seVals=semvals(md_inds,:);
+    
+    sub_colors = gray(nSubj+1);
+    set(groot,'DefaultLegendAutoUpdate','off');
+    fh = figure();hold on;
+    % first make the actual bar plot
+    b = bar(gca,meanVals);
+    lh=[b(1)];
+    
+    % have to set this to "modal", otherwise it fails to get the XOffset
+    % property.
+    set(fh, 'WindowStyle','modal','WindowState','minimized')
+    bar_offset = [b.XOffset];
+    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
+    for cc=1:nConds
+        b(cc).FaceColor = col(cc,:);
+        b(cc).EdgeColor = col(cc,:);
+        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
+                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
+    end
+
+    set(gca,'XTick', 1:numel(md_inds))
+    set(gca,'XTickLabel', md_names,'XTickLabelRotation',90);
+    ylabel('Accuracy')
+    set(gca,'YLim',acclims)
+    set(gca,'XLim',[0,numel(md_inds)+1])
+    if chance_val~=0
+        line([0,numel(md_inds)+1],[chance_val,chance_val],'Color','k');
+    end
+    set(gca,'FontSize',fs);
+    set(gcf,'Position',[800,800,1200,500]);
+    % get locations of bars w offsets
+    c=get(gcf,'Children');b=get(c(end),'Children');
+   
+    verspacerbig = range(acclims)/50;
+    horspacer = abs(diff(bar_offset))/2;
+%     
+    for vv=1:numel(md_inds)
+        % add individual subjects
+        for ss=1:nSubj
+            subvals = squeeze(acc_allsubs(ss,md_inds(vv),:));
+            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
+            uistack(h,'bottom');
+        end
+        % add significance of individual areas/conditions
+        for cc=1:nConds
+            for aa=1:numel(alpha_vals)
+                if p_sr(vv,cc)<alpha_vals(aa)
+                    % smaller dots get over-drawn with larger dots
+                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+                end
+            end
+        end
+        
+    end
+    b(end).BarWidth=bw;
+    
+    leg=legend(lh,{'DWM Loc Task','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+    set(gcf,'color','white')
+    set(gcf, 'WindowStyle','normal','WindowState','normal')
+
 
 end
 

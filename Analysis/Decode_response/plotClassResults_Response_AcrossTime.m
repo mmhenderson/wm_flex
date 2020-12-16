@@ -1,5 +1,10 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of response decoder
+% trained and tested within conditions of main task - cross validated
+% across sessions. Labels are the correct response on each trial. 
+% Train/test within and across timepts, giving full [nTRs x nTRs] matrix
+% Decoding analysis itself performed in Classify_Response_AcrossTime.m and saved as mat
+% file. This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -13,8 +18,8 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
      'S1','M1','Premotor',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1-S1 all'};
 
-plot_order = [12:14];  % visual ROIs
-% plot_order=[4,5];
+% plot motor ROIs only
+plot_order = [12:14];  
 plot_names = ROI_names(plot_order);
 
 nROIs = length(plot_order);
@@ -22,14 +27,12 @@ nROIs = length(plot_order);
 nVox2Use = 10000;
 nPermIter=1000;
 
-% class_str = 'svmtrain_lin';
 class_str = 'normEucDist';
 
 acclims = [0.4,1];
 dprimelims = [-0.2, 1.4];
-col = plasma(5);
-col = col(2:2:end-1,:);
-% cc=1;
+
+col = [125, 93, 175; 15, 127, 98]./255;
 
 % events to plot as vertical lines
 evts2plot = [3.5, 4.5, 16.5, 18.5];

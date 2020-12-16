@@ -1,6 +1,12 @@
-% MMH 3/12/20
-% classifying response - left or R finger?
-
+%% Response decoding analysis
+% Train and test linear decoder, using data from one task condition at a
+% time. Labels are the expected (correct) response on each trial.
+% Train/test within and across timepts, giving full [nTRs x nTRs] matrix
+% cross-validate across sessions, response/luminance mapping was swapped
+% between sessions.
+% Saves the results in a mat file, can plot it using a separate script
+% (plotClassResults_Response_AcrossTime.m)
+%%
 clear
 close all;
 
@@ -47,12 +53,10 @@ for ss=1:length(sublist)
         %% loop over conditions
         for cc =1:nConds
 
-%             respLabs = mainSig(vv).RespActual;
             respLabs = mainSig(vv).CorrectResp;
             condLabs = mainSig(vv).condLabs;
             runLabs = mainSig(vv).runLabs;
-            % getting rid of any trials with no response here
-            % also taking out just the relevant condition!!
+            % take out just relevant condition here
             trials2use = ~isnan(respLabs) & respLabs~=0 & condLabs==cc;
 
             respLabs = respLabs(trials2use);
@@ -67,8 +71,6 @@ for ss=1:length(sublist)
 
             % mainDat is [ntrials x nTRs x nVox]
             nTRs_out = size(mainDat,2);
-            % subtract mean over voxels (third dim)
-%             mainDat = mainDat - repmat(mean(mainDat,3), 1, 1, size(mainDat, 3));
 
             if vv==1 && cc==1
                 % preallocate array here
@@ -94,7 +96,12 @@ for ss=1:length(sublist)
                 % this makes the condition comparisons more fair. Also saves time
                 % because we only need to run this once.
                 if ~isempty(nVox2Use) && nVox2Use<size(dat2use_trn,2)
-                    fprintf('running voxel selection f-test for %s %s: %s condition, tr=%d\n',substr, ROI_names{vv},condLabsStrs{cc}, tr1)
+                    % get ready for parallel pool operations
+                    numcores = 8;
+                    if isempty(gcp('nocreate'))
+                        parpool(numcores);
+                    end
+                    fprintf('running voxel selection f-test for %s %s: %s condition, tr=%d\n',substr, ROI_names{vv},condLabStrs{cc}, tr1)
                     voxStatTable = zeros(size(dat2use_trn,2),nCV);
                     for rr = 1:nCV
                         inds = cvLabs~=rr;
@@ -119,7 +126,8 @@ for ss=1:length(sublist)
                     
                     dat2use_tst = squeeze(mainDat(:,tr2,:));
                     
-                    %% define train and test set 
+                    %% run the classifier 
+
                     trnDat = dat2use_trn;
                     trnLabs = respLabs;
                     trnCV = cvLabs;
@@ -127,9 +135,8 @@ for ss=1:length(sublist)
                     tstDat = dat2use_tst;
                     tstLabs = respLabs;
                     tstCV = cvLabs;
-
-                    %% run the classifier 
-
+                    
+                    % using custom code to do cross-validation 
                     [~,~,predLabs,normEucDist] = my_classifier_cross_wconf(trnDat,trnLabs,...
                         trnCV,tstDat, tstLabs,...
                         tstCV,class_str,100,nVox2Use_now,voxStatTable,1);

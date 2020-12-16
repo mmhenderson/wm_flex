@@ -1,5 +1,10 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of response decoder
+% trained and tested within conditions of main task - cross validated
+% across sessions. Labels are the correct response on each trial. 
+% Trained/tested within each TR for time resolved decoding.
+% Decoding analysis itself performed in Classify_Response_TRbyTR.m and saved as mat
+% file. This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -19,39 +24,34 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
-
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
 plot_order = [1:5,10,11,6:9,12:14];  % motor areas
-motor_names = ROI_names(plot_order);
+vismotor_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
-motor_inds = find(ismember(plot_order_all,plot_order));
+vismotor_inds = find(ismember(plot_order_all,plot_order));
 nROIs = length(plot_order_all);
 
-plotMotorAcc=1;
-plotMotorAccSS=1;
-plotMotorDSS=1;
+plotAcc=1;   % plot subject-averaged decoding acc w error bars?
+plotAccSS=1;  % plot single-subject decoding performance for each cond over time?
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
 class_str = 'normEucDist';
 
+% info for plotting and stats
 acclims = [0.4, 1];
 dprimelims = [-0.2, 1.4];
-% col = plasma(5);
-% col = col(2:2:end-1,:);
+
 col = [125, 93, 175; 15, 127, 98]./255;
 
-% cc=1;
 alpha_vals=[0.05,0.01,0.001];
 alpha_ms = [8,14,20];
-% alpha_ms = [8,16,24];
 alpha=alpha_vals(1);
 
 % events to plot as vertical lines
 evts2plot = [3.5, 4.5, 16.5, 18.5];
 
-% sig_heights = [0.93,0.96,0.99];
 sig_heights = [0.90,0.94,0.98];
 diff_col=[0.5, 0.5, 0.5];
 
@@ -63,16 +63,12 @@ trDur = 0.8;
 tax = trDur*(0:nTRs_out-1);
 lw =1;
 
-
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
-
 acc_allsubs = nan(nSubj,nROIs,nConds,nTRs_out);
 d_allsubs = nan(nSubj,nROIs,nConds,nTRs_out);
-
 accrand_allsubs = nan(nSubj, nROIs, nConds, nTRs_out, nPermIter);
-
 
 for ss=1:length(sublist)
 
@@ -99,7 +95,7 @@ meanvals = squeeze(mean(vals,1));
 semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
 randvals = accrand_allsubs;
 
-% which areas did we do significance test on? not all, because it was slow
+% which areas did we do significance test on?
 inds2test = ~isnan(squeeze(accrand_allsubs(1,:,1,1,1)));
 
 %% Wilcoxon signed rank test
@@ -131,14 +127,14 @@ p_sr = mean(stat_iters_sr<=0, 4);
 p_sr(~inds2test,:,:) = 100;
 
 % print out p values for each condition
-array2table(squeeze(p_sr(motor_inds,1,1:15)),...
-    'RowNames',motor_names,'VariableNames',strseq('Pred_TR',1:15))
-array2table(squeeze(p_sr(motor_inds,1,16:30)),...
-    'RowNames',motor_names,'VariableNames',strseq('Pred_TR',16:30))
-array2table(squeeze(p_sr(motor_inds,2,1:15)),...
-    'RowNames',motor_names,'VariableNames',strseq('Rand_TR',1:15))
-array2table(squeeze(p_sr(motor_inds,2,16:30)),...
-    'RowNames',motor_names,'VariableNames',strseq('Rand_TR',16:30))
+array2table(squeeze(p_sr(vismotor_inds,1,1:15)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Pred_TR',1:15))
+array2table(squeeze(p_sr(vismotor_inds,1,16:30)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Pred_TR',16:30))
+array2table(squeeze(p_sr(vismotor_inds,2,1:15)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Rand_TR',1:15))
+array2table(squeeze(p_sr(vismotor_inds,2,16:30)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Rand_TR',16:30))
 
 %% now doing pairwise condition comparisons - paired t-test.
 numcores = 8;
@@ -150,12 +146,9 @@ rng(rndseed,'twister')
 
 real_sr_stat = nan(nROIs,nTRs_out);
 rand_sr_stat = nan(nROIs, nTRs_out, nPermIter);
-% p_diff_sr=nan(nROIs,nTRs_out);
 for vv=1:nROIs
     for tr=1:nTRs_out
         realvals = squeeze(vals(:,vv,:,tr));
-%         [p,h,stats]=signrank(realvals(:,1),realvals(:,2));
-%         p_diff_sr(vv,tr) = p;
 
         % what is the sign-rank statistic for the real data?
         real_sr_stat(vv,tr) = signrank_MMH(realvals(:,1),realvals(:,2));
@@ -177,35 +170,34 @@ for vv=1:nROIs
     end
 end
 
-% % compute a two-tailed p-value comparing the real stat to the random
-% % distribution. Note that the <= and >= are inclusive, because any
-% % iterations where real==null should count toward the null hypothesis. 
+% compute a two-tailed p-value comparing the real stat to the random
+% distribution. Note that the <= and >= are inclusive, because any
+% iterations where real==null should count toward the null hypothesis. 
 p_diff_sr = 2*min(cat(3,mean(repmat(real_sr_stat,1,1,nPermIter)>=rand_sr_stat,3), ...
     mean(repmat(real_sr_stat,1,1,nPermIter)<=rand_sr_stat,3)),[],3);
 p_diff = p_diff_sr;
 diff_is_sig = p_diff<alpha;
 
-array2table(squeeze(p_diff_sr(motor_inds,1:15)),...
-    'RowNames',motor_names,'VariableNames',strseq('Diff_TR',1:15))
-array2table(squeeze(p_diff_sr(motor_inds,16:30)),...
-    'RowNames',motor_names,'VariableNames',strseq('Diff_TR',16:30))
+array2table(squeeze(p_diff_sr(vismotor_inds,1:15)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Diff_TR',1:15))
+array2table(squeeze(p_diff_sr(vismotor_inds,16:30)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Diff_TR',16:30))
 
 %% Now we make a figure for all subjects
 
-if plotMotorAcc
-    nplots_vis = ceil(sqrt(numel(motor_inds)));
-    nplots_vis=4;
+if plotAcc
+    nplots_vis = ceil(sqrt(numel(vismotor_inds)));
+    
     figure();hold all;
     
-    for vi = 1:numel(motor_inds)
-       
-        subplot(4,4,vi);hold all;
-%         subplot(nplots_vis,ceil(numel(motor_inds)/nplots_vis),vi);hold all;
+    for vi = 1:numel(vismotor_inds)
+
+        subplot(nplots_vis,ceil(numel(vismotor_inds)/nplots_vis),vi);hold all;
         
         lh=[];
         for cc = 1:nConds
 
-            valsplot = acc_allsubs(:,motor_inds(vi),cc,:);
+            valsplot = acc_allsubs(:,vismotor_inds(vi),cc,:);
             if nSubj==1
                 meanvals =squeeze(valsplot)';
                 semvals = [];
@@ -217,13 +209,13 @@ if plotMotorAcc
             bandedError_MMH(tax, meanvals,semvals, col(cc,:), 0.5);
 
             for aa=1:numel(alpha_vals)
-                inds2plot=p_sr(motor_inds(vi),cc,:)<alpha_vals(aa);
+                inds2plot=p_sr(vismotor_inds(vi),cc,:)<alpha_vals(aa);
                 plot(tax(inds2plot), repmat(sig_heights(cc),sum(inds2plot),1),'.','Color',col(cc,:),'MarkerSize',alpha_ms(aa));
             end
         end
         ll=condLabStrs;
         for aa=1:numel(alpha_vals)
-            inds2plot=p_diff(motor_inds(vi),:)<alpha_vals(aa);
+            inds2plot=p_diff(vismotor_inds(vi),:)<alpha_vals(aa);
             plot(tax(inds2plot), repmat(sig_heights(nConds+1),sum(inds2plot),1),'.','Color',diff_col,'MarkerSize',alpha_ms(aa))
             lh=[lh, plot(tax(1)-5, repmat(sig_heights(nConds+1),1,1),'.','Color',diff_col,'MarkerSize',alpha_ms(aa))];
             ll{numel(ll)+1} = sprintf('p<%.03f',alpha_vals(aa));
@@ -246,11 +238,11 @@ if plotMotorAcc
             ylabel('Accuracy');
         end
 
-        if vi==numel(motor_inds)
+        if vi==numel(vismotor_inds)
 %             legend(lh,ll,'FontSize', fs);
         end
        
-        title(sprintf('%s', motor_names{vi}));
+        title(sprintf('%s', vismotor_names{vi}));
       
     end
     set(gcf,'Color','w')
@@ -259,84 +251,47 @@ end
 saveas(gcf,fullfile(figpath,'DecodeCorrectResp_allareas_overtime.pdf'),'pdf');
 
 %%
-if plotMotorAccSS
-    sub_colors=viridis(nSubj+1);
-    nplots_vis = ceil(sqrt(numel(motor_inds)));
-    figure();hold all;
-    lims=[0.3, 1];
-    for vi = 1:numel(motor_inds)
-       
-        subplot(nplots_vis,ceil(numel(motor_inds)/nplots_vis),vi);hold all;
+if plotAccSS
+    for cc=1:nConds
+        sub_colors=viridis(nSubj+1);
+        nplots_vis = ceil(sqrt(numel(vismotor_inds)));
+        figure();hold all;
+        lims=[0.3, 1];
+        for vi = 1:numel(vismotor_inds)
 
-        cc=1;
-        valsplot = acc_allsubs(:,motor_inds(vi),cc,:);
-        lh=[];
-        substrs=[];
-        for ss=1:nSubj
-            lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
-            substrs{ss} = sprintf('S%02d',sublist(ss));
-        end
+            subplot(nplots_vis,ceil(numel(vismotor_inds)/nplots_vis),vi);hold all;
 
-        set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
-        ylim(lims);
-        plot(get(gca,'XLim'),[chance_val,chance_val],'-','Color',[0.8, 0.8, 0.8]);
-        for ee = 1:length(evts2plot)
-            plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
-        end
-        
-        if vi==1
-            xlabel('Time(s)');
-            ylabel('Accuracy');
-        end
 
-        if vi==numel(motor_inds)
-            legend(lh,substrs,'FontSize', fs);
+            valsplot = acc_allsubs(:,vismotor_inds(vi),cc,:);
+            lh=[];
+            substrs=[];
+            for ss=1:nSubj
+                lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
+                substrs{ss} = sprintf('S%02d',sublist(ss));
+            end
+
+            set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
+            ylim(lims);
+            plot(get(gca,'XLim'),[chance_val,chance_val],'-','Color',[0.8, 0.8, 0.8]);
+            for ee = 1:length(evts2plot)
+                plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
+            end
+
+            if vi==1
+                xlabel('Time(s)');
+                ylabel('Accuracy');
+            end
+
+            if vi==numel(vismotor_inds)
+                legend(lh,substrs,'FontSize', fs);
+            end
+
+            title(sprintf('%s', vismotor_names{vi}));
+
         end
-       
-        title(sprintf('%s', motor_names{vi}));
-      
+        set(gcf,'Color','w')
+        set(gcf,'Position',[200,200,1800,1200]);
+        suptitle(condLabStrs{cc})
     end
-    set(gcf,'Color','w')
-    set(gcf,'Position',[200,200,1200,800]);
 end
-%%
-if plotMotorDSS
-    sub_colors=viridis(nSubj+1);
-    nplots_vis = ceil(sqrt(numel(motor_inds)));
-    figure();hold all;
-    lims=[-1,3];
-    for vi = 1:numel(motor_inds)
-       
-        subplot(nplots_vis,ceil(numel(motor_inds)/nplots_vis),vi);hold all;
 
-        cc=1;
-        valsplot = d_allsubs(:,motor_inds(vi),cc,:);
-        lh=[];
-        substrs=[];
-        for ss=1:nSubj
-            lh=[lh, plot(tax,squeeze(valsplot(ss,:)),'-','Color',sub_colors(ss,:),'LineWidth',lw)];
-            substrs{ss} = sprintf('S%02d',sublist(ss));
-        end
-
-        set(gca, 'FontSize', fs, 'XLim',[0 max(tax)])
-        ylim(lims);
-        plot(get(gca,'XLim'),[0,0],'-','Color',[0.8, 0.8, 0.8]);
-        for ee = 1:length(evts2plot)
-            plot([evts2plot(ee),evts2plot(ee)],lims,'-','Color',[0.8, 0.8, 0.8]);
-        end
-        
-        if vi==1
-            xlabel('Time(s)');
-            ylabel('Dprime');
-        end
-
-        if vi==numel(motor_inds)
-            legend(lh,substrs,'FontSize', fs);
-        end
-       
-        title(sprintf('%s', motor_names{vi}));
-      
-    end
-    set(gcf,'Color','w')
-    set(gcf,'Position',[200,200,1200,800]);
-end

@@ -1,5 +1,12 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of response decoder
+% trained and tested using data from digit working memory (DWM)
+% task (button pressing with delayed response).
+% Trained/tested within TR for time resolved decoding
+% Note this task isn't included in our paper.
+% Decoding analysis itself performed in Classify_Response_DWM_TRbyTR.m and 
+% saved as mat file. 
+% This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -19,30 +26,26 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
-
-plot_order = [1:5,10,11,6:9,12:14];  % visual
-% plot_order = [12:20];  % motor/MD areas
-vis_names = ROI_names(plot_order);
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+plot_order = [1:5,10,11,6:9,12:14];  
+vismotor_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
-vis_inds = find(ismember(plot_order_all,plot_order));
+vismotor_inds = find(ismember(plot_order_all,plot_order));
 nROIs = length(plot_order_all);
 
-plotVisAcc=1;
-plotVisAccSS=1;
-plotVisDSS=1;
+plotAcc=1;   % plot subject-averaged decoding acc w error bars?
+
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
 class_str = 'normEucDist';
 
+% parameters for plotting/stats
 acclims = [0.4, 1];
 dprimelims = [-0.2, 1.4];
 col = viridis(4);
 col = col(2,:);
-cc=1;
-% cc=1;
 alpha_vals=[0.05,0.01,0.001];
 alpha_ms = [8,16,24];
 alpha=alpha_vals(1);
@@ -51,7 +54,6 @@ alpha=alpha_vals(1);
 evts2plot = [0,1,13,14];
 
 sig_heights = [0.93,0.96,0.99];
-% diff_col=[0.5, 0.5, 0.5];
 
 fs=20;  % font size for all plots
 ms=10;  % marker size for significance dots
@@ -60,11 +62,6 @@ nTRs_out = 25;
 trDur = 0.8;
 tax = trDur*(0:nTRs_out-1);
 lw =1;
-
-
-% condLabStrs = {'Predictable','Random'};
-% nConds = length(condLabStrs);
-
 
 acc_allsubs = nan(nSubj,nROIs,nTRs_out);
 d_allsubs = nan(nSubj,nROIs,nTRs_out);
@@ -129,24 +126,24 @@ p_sr = mean(stat_iters_sr<=0, 3);
 p_sr(~inds2test,:) = 100;
 
 % print out p values for each condition
-array2table(squeeze(p_sr(vis_inds,1:15)),...
-    'RowNames',vis_names,'VariableNames',strseq('Task_TR',1:15))
-array2table(squeeze(p_sr(vis_inds,16:25)),...
-    'RowNames',vis_names,'VariableNames',strseq('Task_TR',16:25))
+array2table(squeeze(p_sr(vismotor_inds,1:15)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Task_TR',1:15))
+array2table(squeeze(p_sr(vismotor_inds,16:25)),...
+    'RowNames',vismotor_names,'VariableNames',strseq('Task_TR',16:25))
 
 %% Now we make a figure for all subjects
 cc=1;
-if plotVisAcc
-    nplots_vis = ceil(sqrt(numel(vis_inds)));
+if plotAcc
+    nplots_vis = ceil(sqrt(numel(vismotor_inds)));
     figure();hold all;
     
-    for vi = 1:numel(vis_inds)
+    for vi = 1:numel(vismotor_inds)
        
-        subplot(nplots_vis,ceil(numel(vis_inds)/nplots_vis),vi);hold all;
+        subplot(nplots_vis,ceil(numel(vismotor_inds)/nplots_vis),vi);hold all;
         
         lh=[];
        
-        valsplot = acc_allsubs(:,vis_inds(vi),:);
+        valsplot = acc_allsubs(:,vismotor_inds(vi),:);
         if nSubj==1
             meanvals =squeeze(valsplot)';
             semvals = [];
@@ -159,7 +156,7 @@ if plotVisAcc
 
         ll={'Decode Response, DWM Loc Task'};
         for aa=1:numel(alpha_vals)
-            inds2plot=p_sr(vis_inds(vi),:)<alpha_vals(aa);
+            inds2plot=p_sr(vismotor_inds(vi),:)<alpha_vals(aa);
             h=plot(tax(inds2plot), repmat(sig_heights(cc),sum(inds2plot),1),'.','Color',col(cc,:),'MarkerSize',alpha_ms(aa));
             lh=[lh,h];
             ll{numel(ll)+1} = sprintf('p<%.03f',alpha_vals(aa));
@@ -177,11 +174,11 @@ if plotVisAcc
             ylabel('Accuracy');
         end
 
-        if vi==numel(vis_inds)
+        if vi==numel(vismotor_inds)
             legend(lh,ll,'FontSize', fs);
         end
        
-        title(sprintf('%s', vis_names{vi}));
+        title(sprintf('%s', vismotor_names{vi}));
       
     end
     set(gcf,'Color','w')

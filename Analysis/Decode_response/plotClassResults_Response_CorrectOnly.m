@@ -1,5 +1,11 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of response decoder
+% trained and tested within conditions of main task - cross validated
+% across sessions. Labels are the actual physical response on each trial,
+% excluding any incorrect trials.
+% Decoding analysis itself performed in Classify_Response_CorrectOnly.m and 
+% saved as mat file. 
+% This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -20,42 +26,44 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
 
-plot_order1 = [1:5,10,11,6:9,12:14];  % visual ROIs and motor ROIs
-plot_order2 = [15:20];  % MD areas (not super interested in these)
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+% reordering them a little for logical x-axis on plots
+plot_order1 = [1:5,10,11,6:9,12:14];  
+% Indices for Multiple-demand ROIs (not included in any of our main 
+% analyses, but can plot results for these separately if you wish).
+plot_order2 = [15:20]; 
+
+plotVisMotorAcc = 1;    % make plots for retinotopic and motor ROIs?
+plotMDAcc=0;    % make plots for MD ROIs?
+plotPrevalence=0;   % plot the estimated population prevalence of each effect? see below code for what this is
 
 vismotor_names = ROI_names(plot_order1);
 md_names = ROI_names(plot_order2);
-
 plot_order_all = [plot_order1,plot_order2];
 nROIs = length(plot_order_all);
-
 vismotor_inds = find(ismember(plot_order_all,plot_order1));
 md_inds = find(ismember(plot_order_all,plot_order2));
-
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
+
 class_str = 'normEucDist';
 
+% parameters for plotting/stats
 alpha_vals=[0.05, 0.01, 0.001];
 alpha_ms = [8,16,24];
 alpha = alpha_vals(1);
 
 acclims = [0.4, 0.9];
 dprimelims = [-0.2, 1.4];
-col = plasma(5);
-col = col(2:2:end-1,:);
 
+col = [125, 93, 175; 15, 127, 98]./255;
 diff_col=[0.5, 0.5, 0.5];
 
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
 
-plotVisMotorAcc = 1;
-plotPrevalence=1;
-plotMDAcc=1;
 %% load results
 
 acc_allsubs = nan(nSubj,nROIs,nConds);
@@ -69,7 +77,6 @@ for ss=1:length(sublist)
     
     save_dir = fullfile(curr_dir,'Decoding_results');
     fn2load = fullfile(save_dir,sprintf('ClassifyResponse_CorrectOnly_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
-%     fn2load = fullfile(save_dir,sprintf('ClassifyResponse_leavePairOut_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     
     assert(size(allacc,1)==numel(ROI_names))
@@ -89,6 +96,10 @@ meanvals = squeeze(mean(vals,1));
 semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
 randvals = accrand_allsubs;
 
+% print mean and sem decoding acc for each region of interest
+array2table([meanvals(vismotor_inds,1), semvals(vismotor_inds,1), ...
+    meanvals(vismotor_inds,2), semvals(vismotor_inds,2)],...
+    'RowNames',vismotor_names,'VariableNames',{'Pred_mean','Pred_sem','Rand_mean','Rand_sem'})
 
 %% 2-way RM anova on decoding values
 % using shuffling to compute significance of each effect
@@ -141,19 +152,15 @@ if isempty(gcp('nocreate'))
 end
 rndseed = 123344;
 rng(rndseed,'twister')
-% 
+
 real_sr_stat = nan(nROIs,1);
 rand_sr_stat = nan(nROIs, nPermIter);
-% p_diff_sr=nan(nROIs,1);
+
 for vv=1:nROIs
     realvals = squeeze(vals(:,vv,:));
-%     [p,h,stats]=signrank(realvals(:,1),realvals(:,2));
-%     p_diff_sr(vv) = p;
+
     % what is the sign-rank statistic for the real data?
     real_sr_stat(vv) = signrank_MMH(realvals(:,1),realvals(:,2));
-%     
-    % determine before the parfor loop which conditions get randomly
-    % swapped on each iteration (otherwise not deterministic)
     inds2swap = double(randn(nSubj,nPermIter)>0);
     inds2swap(inds2swap==0) = -1;
 
@@ -168,9 +175,9 @@ for vv=1:nROIs
     end
 end
 
-% % compute a two-tailed p-value comparing the real stat to the random
-% % distribution. Note that the <= and >= are inclusive, because any
-% % iterations where real==null should count toward the null hypothesis. 
+% compute a two-tailed p-value comparing the real stat to the random
+% distribution. Note that the <= and >= are inclusive, because any
+% iterations where real==null should count toward the null hypothesis. 
 p_diff_sr = 2*min([mean(repmat(real_sr_stat,1,nPermIter)>=rand_sr_stat,2), ...
     mean(repmat(real_sr_stat,1,nPermIter)<=rand_sr_stat,2)],[],2);
 p_diff = p_diff_sr;
@@ -194,7 +201,170 @@ array2table(squeeze(sum(is_sig_ss(:,vismotor_inds,:),1)),'RowNames',vismotor_nam
 array2table(squeeze(sum(vals(:,vismotor_inds,1)>vals(:,vismotor_inds,2),1))','RowNames',vismotor_names,'VariableNames',{'pred_gr_rand'})
 
 
+%% make a bar plot of decoding acc, with single subjects overlaid
+bw=0.50;
+fs=14;
+if plotVisMotorAcc
+   
+    meanVals=meanvals(vismotor_inds,:);
+    seVals=semvals(vismotor_inds,:);
+    
+    sub_colors = gray(nSubj+1);
+    set(groot,'DefaultLegendAutoUpdate','off');
+    fh = figure();hold on;
+    % first make the actual bar plot
+    b = bar(gca,meanVals);
+    lh=[b(1),b(2)];
+    
+    % have to set this to "modal", otherwise it fails to get the XOffset
+    % property.
+    set(fh, 'WindowStyle','modal','WindowState','minimized')
+    bar_offset = [b.XOffset];
+    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
+    for cc=1:nConds
+        b(cc).FaceColor = col(cc,:);
+        b(cc).EdgeColor = col(cc,:);
+        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
+                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
+    end
+
+    set(gca,'XTick', 1:numel(vismotor_inds))
+    set(gca,'XTickLabel', vismotor_names,'XTickLabelRotation',90);
+    ylabel('Accuracy')
+    set(gca,'YLim',acclims)
+    set(gca,'XLim',[0,numel(vismotor_inds)+1])
+    if chance_val~=0
+        line([0,numel(vismotor_inds)+1],[chance_val,chance_val],'Color','k');
+    end
+    set(gca,'FontSize',fs);
+    set(gcf,'Position',[800,800,1200,500]);
+    % get locations of bars w offsets
+    c=get(gcf,'Children');b=get(c(end),'Children');
+   
+    verspacerbig = range(acclims)/50;
+    horspacer = abs(diff(bar_offset))/2;
+%     
+    for vv=1:numel(vismotor_inds)
+        % add individual subjects
+        for ss=1:nSubj
+            subvals = squeeze(acc_allsubs(ss,vismotor_inds(vv),:));
+            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
+            uistack(h,'bottom');
+        end
+        % add significance of individual areas/conditions
+        for cc=1:nConds
+            for aa=1:numel(alpha_vals)
+                if p_sr(vismotor_inds(vv),cc)<alpha_vals(aa)
+                    % smaller dots get over-drawn with larger dots
+                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+                end
+            end
+        end
+        % add significance of condition differences
+        for aa=1:numel(alpha_vals)
+            if p_diff(vismotor_inds(vv))<alpha_vals(aa)
+                [mx,maxind] = max(meanVals(vv,:));
+                % smaller dots get over-drawn with larger dots
+                plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
+                plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
+                
+            end
+            if vv==1
+                lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
+            end
+        end
+    end
+    b(end).BarWidth=bw;
+    b(end-1).BarWidth=bw;
+    leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+    set(gcf,'color','white')
+    set(gcf, 'WindowStyle','normal','WindowState','normal')
+
+end
+
+%% make a bar plot of acc - md areas
+if plotMDAcc
+    
+    
+    meanVals=meanvals(md_inds,:);
+    seVals=semvals(md_inds,:);
+    
+    sub_colors = gray(nSubj+1);
+    set(groot,'DefaultLegendAutoUpdate','off');
+    fh = figure();hold on;
+    % first make the actual bar plot
+    b = bar(gca,meanVals);
+    lh=[b(1),b(2)];
+    
+    % have to set this to "modal", otherwise it fails to get the XOffset
+    % property.
+    set(fh, 'WindowStyle','modal','WindowState','minimized')
+    bar_offset = [b.XOffset];
+    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
+    for cc=1:nConds
+        b(cc).FaceColor = col(cc,:);
+        b(cc).EdgeColor = col(cc,:);
+        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
+                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
+    end
+
+    set(gca,'XTick', 1:numel(md_inds))
+    set(gca,'XTickLabel', md_names,'XTickLabelRotation',90);
+    ylabel('Accuracy')
+    set(gca,'YLim',acclims)
+    set(gca,'XLim',[0,numel(md_inds)+1])
+    if chance_val~=0
+        line([0,numel(md_inds)+1],[chance_val,chance_val],'Color','k');
+    end
+    set(gca,'FontSize',fs);
+    set(gcf,'Position',[800,800,1200,500]);
+    % get locations of bars w offsets
+    c=get(gcf,'Children');b=get(c(end),'Children');
+   
+    verspacerbig = range(acclims)/50;
+    horspacer = abs(diff(bar_offset))/2;
+%     
+    for vv=1:numel(md_inds)
+        % add individual subjects
+        for ss=1:nSubj
+            subvals = squeeze(acc_allsubs(ss,md_inds(vv),:));
+            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
+            uistack(h,'bottom');
+        end
+        % add significance of individual areas/conditions
+        for cc=1:nConds
+            for aa=1:numel(alpha_vals)
+                if p_sr(md_inds(vv),cc)<alpha_vals(aa)
+                    % smaller dots get over-drawn with larger dots
+                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+                end
+            end
+        end
+        % add significance of condition differences
+        for aa=1:numel(alpha_vals)
+            if p_diff(md_inds(vv))<alpha_vals(aa)
+                [mx,maxind] = max(meanVals(vv,:));
+                % smaller dots get over-drawn with larger dots
+                plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
+                plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
+                
+            end
+            if vv==1
+                lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
+            end
+        end
+    end
+    b(end).BarWidth=bw;
+    b(end-1).BarWidth=bw;
+    leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+    set(gcf,'color','white')
+    set(gcf, 'WindowStyle','normal','WindowState','normal')
+
+end
+
 %% bayesian prevalance of significant effects in the population
+% code from Ince, Kay, & Schyns, bioRxiv 2020
+% note this analysis isn't included in our paper
 n=nSubj;
 a=alpha;
 b=1;
@@ -279,95 +449,4 @@ if plotPrevalence
     ylabel('Population prevalence')
     title('Estimated prevalence difference (rand-pred)')
     legend(lh,condLabStrs)
-end
-
- %% plot with single subjects
-bw=0.50;
-fs=14;
-if plotVisMotorAcc
-   
-    meanVals=meanvals(vismotor_inds,:);
-    seVals=semvals(vismotor_inds,:);
-    
-    sub_colors = gray(nSubj+1);
-    set(groot,'DefaultLegendAutoUpdate','off');
-    fh = figure();hold on;
-    % first make the actual bar plot
-    b = bar(gca,meanVals);
-    lh=[b(1),b(2)];
-    
-    % have to set this to "modal", otherwise it fails to get the XOffset
-    % property.
-    set(fh, 'WindowStyle','modal','WindowState','minimized')
-    bar_offset = [b.XOffset];
-    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
-    for cc=1:nConds
-        b(cc).FaceColor = col(cc,:);
-        b(cc).EdgeColor = col(cc,:);
-        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
-                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
-    end
-
-    set(gca,'XTick', 1:numel(vismotor_inds))
-    set(gca,'XTickLabel', vismotor_names,'XTickLabelRotation',90);
-    ylabel('Accuracy')
-    set(gca,'YLim',acclims)
-    set(gca,'XLim',[0,numel(vismotor_inds)+1])
-    if chance_val~=0
-        line([0,numel(vismotor_inds)+1],[chance_val,chance_val],'Color','k');
-    end
-    set(gca,'FontSize',fs);
-    set(gcf,'Position',[800,800,1200,500]);
-    % get locations of bars w offsets
-    c=get(gcf,'Children');b=get(c(end),'Children');
-   
-    verspacerbig = range(acclims)/50;
-    horspacer = abs(diff(bar_offset))/2;
-%     
-    for vv=1:numel(vismotor_inds)
-        % add individual subjects
-        for ss=1:nSubj
-            subvals = squeeze(acc_allsubs(ss,vismotor_inds(vv),:));
-            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
-            uistack(h,'bottom');
-        end
-        % add significance of individual areas/conditions
-        for cc=1:nConds
-            for aa=1:numel(alpha_vals)
-                if p_sr(vv,cc)<alpha_vals(aa)
-                    % smaller dots get over-drawn with larger dots
-                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
-                end
-            end
-        end
-        % add significance of condition differences
-        for aa=1:numel(alpha_vals)
-            if p_diff(vv)<alpha_vals(aa)
-                [mx,maxind] = max(meanVals(vv,:));
-                % smaller dots get over-drawn with larger dots
-                plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
-                plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
-                
-            end
-            if vv==1
-                lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
-            end
-        end
-    end
-    b(end).BarWidth=bw;
-    b(end-1).BarWidth=bw;
-    leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
-    set(gcf,'color','white')
-    set(gcf, 'WindowStyle','normal','WindowState','normal')
-
-end
-
-saveas(gcf,fullfile(figpath,'DecodeCorrectResp_allareas.pdf'),'pdf');
-
-%% make a bar plot of acc - md areas
-if plotMDAcc
-    
-    plot_barsAndStars(meanvals(md_inds,:),semvals(md_inds,:),is_sig(md_inds,:),...
-        diff_is_sig(md_inds),chance_val,acclims,md_names,condLabStrs,...
-        'Accuracy','Response (expected)',col);
 end

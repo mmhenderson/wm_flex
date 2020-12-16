@@ -27,7 +27,7 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'IPS0-3','IPS0-1','IPS2-3'};
 
 % Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
-plot_order = [1:5,10,11,6:9];  % vis areas
+plot_order = [1:5,10,11,6:9,12:14];  % vis areas
 vis_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
 vis_inds = find(ismember(plot_order_all,plot_order));
@@ -39,14 +39,13 @@ plotVisAccSS=1;  % plot single-subject decoding performance for each cond over t
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
+
 class_str = 'normEucDist';
 
 acclims = [0.4, 1];
 dprimelims = [-0.2, 1.4];
-col = plasma(5);
-col = col(2:2:end-1,:);
-% cc=1;
+col = [125, 93, 175; 15, 127, 98]./255;
+
 alpha_vals=[0.05,0.01,0.001];
 alpha_ms = [8,16,24];
 alpha=alpha_vals(1);

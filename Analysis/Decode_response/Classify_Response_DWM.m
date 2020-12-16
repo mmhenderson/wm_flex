@@ -1,7 +1,13 @@
-% MMH 3/12/20
-% classifying RESPONSE - WHICH FINGER DID THEY EVENTUALLY PRESS??
-    % note this is counter-balanced w/r/t COLOR of the side.
-
+%% Response decoding analysis
+% Train and test linear decoder, using data from digit working memory (DWM)
+% task (button pressing with delayed response).
+% Labels are the expected (correct) response on each trial.
+% cross-validate across sessions, response/luminance mapping was swapped
+% between sessions.
+% Saves the results in a mat file, can plot it using a separate script
+% (plotClassResults_ResponseDWMLoc.m)
+% Note this task isn't included in our paper
+%%
 clear
 close all;
 
@@ -13,22 +19,24 @@ nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;
-nPermIter=1000;
-condLabStrs = {'DWMLocTask'};
-nConds = length(condLabStrs);
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
-
+% get ready for parallel pool operations
 dbstop if error
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
 end
-
 rndseed = 121343;
 rng(rndseed,'twister');
+
+condLabStrs = {'Predictable','Random'};
+nConds = length(condLabStrs);
+nTrialsTotal=2*10*20;
+
 %% loop over subjects
 for ss=1:length(sublist)
 
@@ -49,8 +57,7 @@ for ss=1:length(sublist)
     nTrialsTotal = size(locSig(1).dat_avg_targ,1);
     allconf = nan(length(ROI_names), nTrialsTotal);
     for vv = v2do
-%     for vv = 1:length(ROI_names)
-        
+
         %% pull out the data for main task
 
         if length(locSig)<vv || isempty(locSig(vv).dat_avg_targ) || size(locSig(vv).dat_avg_targ,2)<1
@@ -64,13 +71,10 @@ for ss=1:length(sublist)
             % also remove the incorrect trials, but that would un-balance
             % the training set.
             trials2use = ones(size(locSig(1).ActDigit,1),1)==1;
-%             trials2use = locSig(vv).ActDigit == locSig(vv).ExpDigit;
             respLabs = locSig(vv).ExpDigit(trials2use);
             runLabs = locSig(vv).runLabs(trials2use);
             digDat = locSig(vv).dat_avg_targ(trials2use,:);
-%             digDat = digDat - repmat(mean(digDat,2), 1, size(digDat,2));
-            
-            
+
             if vv==v2do(1)
                 % preallocate array here
                 allacc = nan(length(ROI_names), nConds);
@@ -112,23 +116,22 @@ for ss=1:length(sublist)
                 nVox2Use_now = [];
             end
 
-            %% define train and test set 
-
-            % same data here because we're not cross-generalizing or anything
+            %% run the classifier 
+            
             trnDat = dat2use;
             trnLabs = respLabs;
             trnCV = runLabs;
 
             tstDat = dat2use;
             tstLabs = respLabs;
-            tstCV= runLabs;
-
-            %% run the classifier w/ balancing if needed
-
-
-           [~,~,predLabs,normEucDist] = my_classifier_cross_wconf(trnDat,trnLabs,...
+            tstCV = runLabs;
+            
+            % using custom code to do cross-validation - same data goes in
+            % as train and test, but cross-validation labels determines
+            % which part used to train and test.
+            [~,~,predLabs,normEucDist] = my_classifier_cross_wconf(trnDat,trnLabs,...
                 trnCV,tstDat, tstLabs,...
-                tstCV,class_str,100,nVox2Use_now,voxStatTable,1);
+                tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
 
             acc = mean(predLabs==tstLabs);
             dprime = get_dprime(predLabs, tstLabs,tstLabs);
@@ -150,28 +153,28 @@ for ss=1:length(sublist)
             randaccs= nan(nPermIter, 1);              
             randd = nan(nPermIter, 1);
 
-            parfor ii=1:nPermIter
-                % randomize all labels (note this is across all runs,
-                % so we're shuffling training and testing sets at once.
-                randlabs_all=nan(size(trnLabs));
-                for se=1:nRuns
+            % doing the shuffling before parfor loop 
+            randlabs_all = zeros(size(trnLabs,1),nPermIter);
+            for ii=1:nPermIter
+                 for se=1:nRuns
                     % shuffle the data from one session at a time, so we
                     % don't un-balance the training sets. 
                     inds=trnCV==se;
                     dat2shuff=trnLabs(inds);
-                    randlabs_all(inds) = dat2shuff(randperm(numel(dat2shuff)));
-                end
+                    randlabs_all(inds,ii) = dat2shuff(randperm(numel(dat2shuff)));
+                 end                
+            end  
+            parfor ii=1:nPermIter 
+                randlabs=randlabs_all(:,ii)                
                 % run classifier with the random labels
-                [~,~,predLabs] = my_classifier_cross(trnDat,randlabs_all,...
-                trnCV,tstDat, randlabs_all,...
-                tstCV,class_str,100,nVox2Use_now,voxStatTable,1);
-
+                [~,~,predLabs] = my_classifier_cross(trnDat,randlabs,...
+                trnCV,tstDat, randlabs,...
+                tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
                 % get performance in each condition, for the random decoder
-                randaccs(ii) = mean(predLabs==randlabs_all);                  
-                randd(ii) = get_dprime(predLabs,randlabs_all,unique(randlabs_all));
-
+                randaccs(ii) = mean(predLabs==randlabs);                  
+                randd(ii) = get_dprime(predLabs,randlabs,unique(randlabs));
             end
-
+           
             % put everything into a big array for saving
             allacc_rand(vv,cc,:) = randaccs;               
             alld_rand(vv,cc,:) = randd;

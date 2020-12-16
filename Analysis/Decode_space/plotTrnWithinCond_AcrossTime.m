@@ -35,8 +35,7 @@ class_str = 'normEucDist';
 
 acclims = [0.4,1];
 dprimelims = [-0.2, 1.4];
-col = plasma(5);
-col = col(2:2:end-1,:);
+col = [125, 93, 175; 15, 127, 98]./255;
 
 % events to plot as vertical lines
 evts2plot = [3.5, 4.5, 16.5, 18.5];

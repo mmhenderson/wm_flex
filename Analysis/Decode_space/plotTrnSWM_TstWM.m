@@ -98,6 +98,11 @@ randvals = accrand_allsubs;
 meanvals_rand = squeeze(mean(randvals,1));
 semvals_rand = squeeze(std(randvals,[],1)./sqrt(nSubj));
 
+% print mean and sem decoding acc for each region of interest
+array2table([meanvals(vismotor_inds,1), semvals(vismotor_inds,1), ...
+    meanvals(vismotor_inds,2), semvals(vismotor_inds,2)],...
+    'RowNames',vismotor_names,'VariableNames',{'Pred_mean','Pred_sem','Rand_mean','Rand_sem'})
+
 %% 2-way RM anova on decoding values
 % using shuffling to compute significance of each effect
 numcores = 8;
