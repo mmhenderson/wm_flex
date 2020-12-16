@@ -1,4 +1,5 @@
-% Plot the average univariate signal in each lateralized ROI on trials
+%% Plot signal related to contralateral/ipsilateral finger presses
+% Get the average univariate signal in each hemisphere ROI on trials
 % where either the left or right finger was to be pressed at end of delay. 
 % See when/where univariate motor signals emerge.
 
@@ -32,11 +33,6 @@ vismotor_inds = find(ismember(plot_order_all,plot_order1));
 nROIs = length(plot_order_all);
 
 lw=1;
-
-% baseline to zero at this TR            
-% tr2baseline=1;
-% tr2baseline=21;
-% tr2baseline=4;
 
 condLabStrs = {'Predictable','Random'};
 respLabStrs = {'Contra finger','Ipsi finger'};
@@ -74,8 +70,6 @@ difflims = [-0.5 0.5];
 col_resp = plasma(3);
 col_resp = col_resp(1:2,:);
 
-% col_conds = plasma(5);
-% col_conds = col_conds(2:2:end-1,:);
 col_conds = [125, 93, 175; 15, 127, 98]./255;
 
 
@@ -102,12 +96,7 @@ for ss=1:length(sublist)
             fprintf('no voxels in area %s!\n',ROI_names{vv});
             continue
         end
-%         if numel(dat_by_TR_lh)>0                           
-%             dat_by_TR_lh = dat_by_TR_lh - repmat(dat_by_TR_lh(:,tr2baseline,:),1,size(dat_by_TR_lh,2),1);
-%         end
-%         if numel(dat_by_TR_rh)>0  
-%             dat_by_TR_rh = dat_by_TR_rh - repmat(dat_by_TR_rh(:,tr2baseline,:),1,size(dat_by_TR_rh,2),1);
-%         end
+
         condLabs = mainSig(vv,1).condLabs;
 
         dist_to_bound = mainSig(1).dist_to_real_bound;
@@ -118,30 +107,30 @@ for ss=1:length(sublist)
         % at this point (what is the response associated with the random
         % preview disk)? this is irrelevant to the task, but may be 
         % automatically represented.
-        targ_pos = mainSig(1,1).targPos;
-        preview_bound_pos = mainSig(1,1).randBoundPos;
-        preview_bound_pos(condLabs==1) = mainSig(1,1).boundPos(condLabs==1);
-        resp_assoc_preview = zeros(size(targ_pos));
-        over180 = preview_bound_pos>180;
-        resp_assoc_preview(over180 &...
-            targ_pos<preview_bound_pos &...
-            targ_pos>mod(preview_bound_pos+180,360)) = 2;
-        resp_assoc_preview(over180 & ...
-            (targ_pos>preview_bound_pos |...
-            targ_pos<mod(preview_bound_pos+180,360))) = 1;
-        resp_assoc_preview(~over180 &...
-            targ_pos>preview_bound_pos &...
-            targ_pos<mod(preview_bound_pos+180,360)) = 1;
-        resp_assoc_preview(~over180 &...
-            (targ_pos<preview_bound_pos |...
-            targ_pos>mod(preview_bound_pos+180,360))) = 2;
-        
-        
-        % check that the above code is working by making sure it gets the
-        % right answer for the predictable trials
-        assert(all(resp_assoc_preview(condLabs==1)==respLabs(condLabs==1)));
-        
-%         resp_label = resp_assoc_preview;
+%         targ_pos = mainSig(1,1).targPos;
+%         preview_bound_pos = mainSig(1,1).randBoundPos;
+%         preview_bound_pos(condLabs==1) = mainSig(1,1).boundPos(condLabs==1);
+%         resp_assoc_preview = zeros(size(targ_pos));
+%         over180 = preview_bound_pos>180;
+%         resp_assoc_preview(over180 &...
+%             targ_pos<preview_bound_pos &...
+%             targ_pos>mod(preview_bound_pos+180,360)) = 2;
+%         resp_assoc_preview(over180 & ...
+%             (targ_pos>preview_bound_pos |...
+%             targ_pos<mod(preview_bound_pos+180,360))) = 1;
+%         resp_assoc_preview(~over180 &...
+%             targ_pos>preview_bound_pos &...
+%             targ_pos<mod(preview_bound_pos+180,360)) = 1;
+%         resp_assoc_preview(~over180 &...
+%             (targ_pos<preview_bound_pos |...
+%             targ_pos>mod(preview_bound_pos+180,360))) = 2;
+%         
+%         
+%         % check that the above code is working by making sure it gets the
+%         % right answer for the predictable trials
+%         assert(all(resp_assoc_preview(condLabs==1)==respLabs(condLabs==1)));
+
+        % using the response associated with the final boundary disk
         resp_label = respLabs;
         
         % take an average over voxels and save it for later
@@ -195,20 +184,7 @@ end
 
 %%
 assert(~any(isnan(allsub_HRFs_mean(:))))
-% assert(~any(allsub_HRFs_mean(:)==0))
 assert(~any(isnan(allsub_HRFs_sem(:))))
-% assert(~any(allsub_HRFs_sem(:)==0))
-
-% %%
-% vv=13;
-% cc=2;
-% for ss=1:6
-%     figure;hold all;
-%     for rr=1:nResp
-%         plot(tax,squeeze(vals(ss,vv,cc,rr,:)),'Color',col_resp(rr,:));
-%     end
-% end
-    
 
 %% compare contra vs ipsi within each condition - wilcoxon signed rank tests
 numcores = 8;
@@ -271,12 +247,10 @@ rng(rndseed,'twister')
 real_sr_stat = nan(nROIs,nTRs_out);
 rand_sr_stat = nan(nROIs, nTRs_out, nPermIter);
 
-% p_diff_sr=nan(nROIs,nTRs_out);
 for vv=1:nROIs
     for tr=1:nTRs_out
         realvals = squeeze(vals(:,vv,:,3,tr));
-%         [p,h,stats]=signrank(realvals(:,1),realvals(:,2));
-%         p_diff_sr(vv,tr) = p;
+
         % what is the sign-rank statistic for the real data?
         real_sr_stat(vv,tr) = signrank_MMH(realvals(:,1),realvals(:,2));
 

@@ -1,5 +1,8 @@
-% MMH 3/12/20
-
+%% plot signal related to contra/ipsi presses in digit localizer task
+% this is the taks used to localize sensorimotor cortex areas.
+% sanity check that these areas show the signal difference expected - this
+% is a check for the response/finger labels.
+%%
 clear
 close all;
 
@@ -23,13 +26,11 @@ vismotor_inds = [1:5,10,11,6:9,12:14];  % visual ROIs
 vismotor_names = ROI_names(vismotor_inds);
 md_inds = [15:20];   % MD and motor ROIs
 md_names = ROI_names(md_inds);
-% plot_order_all = [plot_order1, plot_order2];
-% vis_inds = find(ismember(plot_order_all,plot_order1));
-% motor_inds = find(ismember(plot_order_all,plot_order2));
+
 ylims = [-0.25, 0.25];
 plotVisMotor=1;
 plotVisMotorSS=1;
-plotMD=1;
+plotMD=0;
 
 hemi_names={'LH','RH'};
 resp_names={'Left Index', 'Right Index'};

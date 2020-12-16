@@ -1,6 +1,6 @@
-% Instead of actually deconvolving, just plotting the mean values in the
-% time course in chunks of TRs aligned to each trial. Gives really similaar
-% result but i can baseline however i want...
+%% Plot average signal in each ROI over time. 
+% similar to deconvolution but instead of deconvolving, just stack epoched
+% trials and take average. 
 
 %%
 clear

@@ -1,7 +1,9 @@
-% Plot the average univariate signal in each lateralized ROI on trials
+%% Plot signal related to contralateral/ipsilateral finger presses
+% during the digit working memory (DWM) task, delayed button pressing task.
+% Get the average univariate signal in each hemisphere ROI on trials
 % where either the left or right finger was to be pressed at end of delay. 
 % See when/where univariate motor signals emerge.
-
+% Note this task is not included in our paper.
 %%
 clear
 close all;
@@ -30,11 +32,6 @@ vismotor_inds = find(ismember(plot_order_all,plot_order1));
 
 nROIs = length(plot_order_all);
 lw=1;
-
-% baseline to zero at this TR            
-% tr2baseline=1;
-% tr2baseline=21;
-% tr2baseline=5;
 
 condLabStrs = {'DWM Loc Task'};
 respLabStrs = {'Contra finger','Ipsi finger'};
@@ -72,8 +69,6 @@ diff_col=[0.5, 0.5, 0.5];
 col_resp = plasma(3);
 col_resp = col_resp(1:2,:);
 
-% col_conds = plasma(5);
-% col_conds = col_conds(2:2:end-1,:);
 col_conds = viridis(4);
 col_conds=col_conds(1,:);
 
@@ -101,12 +96,6 @@ for ss=1:length(sublist)
             fprintf('no voxels in area %s!\n',ROI_names{vv});
             continue
         end
-%         if numel(dat_by_TR_lh)>0                           
-%             dat_by_TR_lh = dat_by_TR_lh - repmat(dat_by_TR_lh(:,tr2baseline,:),1,size(dat_by_TR_lh,2),1);
-%         end
-%         if numel(dat_by_TR_rh)>0  
-%             dat_by_TR_rh = dat_by_TR_rh - repmat(dat_by_TR_rh(:,tr2baseline,:),1,size(dat_by_TR_rh,2),1);
-%         end
        
         respLabs = locSig(vv,1).ExpDigit;
         condLabs = ones(size(respLabs));

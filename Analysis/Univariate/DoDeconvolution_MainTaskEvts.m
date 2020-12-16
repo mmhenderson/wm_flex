@@ -1,5 +1,5 @@
-% deconvolution on main task data. estimate BOLD resp
-% amplitude for each type of event in each condition. 
+%% Deconvolution on main task data. 
+% estimate BOLD resp amplitude for each type of event in each condition. 
 
 clear
 close all;
@@ -140,7 +140,6 @@ for ss=1:length(sublist)
 
         % now find the actual onset of each trial - switch from 0.2 to 1
         % (or 0 to 1)
-%         trial_onset_bool = diff([zeros(1, size(event_labels_reshaped,2)); event_labels_reshaped],1)==1.7;
         trial_onset_bool = event_labels_reshaped==1;
         trial_onset_bool = trial_onset_bool(:);
         trial_onset_num = find(trial_onset_bool);
@@ -158,7 +157,6 @@ for ss=1:length(sublist)
             wmConds(wmConds==unconds(uu)) = uu;
         end
 
-    %  list the conditions
         condLabStrs = {'Targ Onset: Predictable','Targ Onset: Random'};
         %% now do deconvolution to estimate the event related HRF associated with each event type.
         % written in a very general way that can be applied to any data set -
@@ -171,8 +169,6 @@ for ss=1:length(sublist)
         nMainRuns = numel(unique(main.RunLabels));   % can do this size(oriLocDat,1)/oriLocTRs, but we'll use this method so that we can cross-check each approach (see error checking inside of the doDecon func)
 
         maintaskHRFs = doDecon_ForRR(mainDat, wmConds, nConds, nMainRuns, nTRs, nTRs_out);
-%         maintaskHRFs = doDecon2(mainDat, wmConds, nConds, nMainRuns, nTRs, nTRsToModel);
-
         for cc=1:nConds
             allsub_HRFs_mean(ss,vi,cc,:) = mean(maintaskHRFs(:,cc,:),3);
             allsub_HRFs_sem(ss,vi,cc,:) = std(maintaskHRFs(:,cc,:),[],3)./sqrt(nVox);
