@@ -1,5 +1,6 @@
-% function oriSpin_anaBehav
-
+% plot performance on main task, both conditions
+% perform stats comparing conditions
+%%
 close all
 clear
 
@@ -11,7 +12,6 @@ exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 
 addpath('/usr/local/serenceslab/serenceslab_toolboxes/CircStat2012a')
 addpath(fullfile(exp_path,'Analysis','stats_code'))
-addpath(fullfile(exp_path,'Analysis','stats_code','bayesian-prevalence','matlab'))
 figpath = fullfile(exp_path,'figs');
 
 sublist = [2,3,4,5,6,7];
@@ -167,45 +167,9 @@ ylabel('Accuracy');
 legend(lh,ll);
 set(gcf,'Color','w');
 saveas(gcf,fullfile(figpath,'Acc_allsubs.pdf'),'pdf');
-%% compare accuracy across conditions, signed rank test.
-numcores = 8;
-if isempty(gcp('nocreate'))
-    parpool(numcores);
-end
-rndseed = 345454;
-rng(rndseed,'twister')
-nPermIter=1000;
+%% compare accuracy across conditions
 
 realvals = acc;
-
-% what is the sign-rank statistic for the real data?
-real_sr_stat= signrank_MMH(realvals(:,1),realvals(:,2));
-
-% determine before the parfor loop which conditions get randomly
-% swapped on each iteration (otherwise not deterministic)
-inds2swap = double(randn(nSubj,nPermIter)>0);
-inds2swap(inds2swap==0) = -1;
-
-rand_sr_stat = nan(nPermIter, 1);
-
-parfor ii=1:nPermIter          
-
-    % randomly permute the condition labels within subject
-    randvals=realvals;
-    randvals(inds2swap(:,ii)==-1,:) = randvals(inds2swap(:,ii)==-1,[2,1]);    
-    % what is the sign-rank statistic for this randomly permuted data?
-    rand_sr_stat(ii) = signrank_MMH(randvals(:,1),randvals(:,2));
-
-end
-
-
-% compute a two-tailed p-value comparing the real stat to the random
-% distribution. Note that the <= and >= are inclusive, because any
-% iterations where real==null should count toward the null hypothesis. 
-p_diff_sr = 2*min([mean(real_sr_stat>=rand_sr_stat), ...
-    mean(real_sr_stat<=rand_sr_stat)],[],2);
-p_diff = p_diff_sr;
-
 [h,p_ttest,ci,stats] = ttest(realvals(:,1),realvals(:,2));
 
 %% print out accuracy results
@@ -213,7 +177,6 @@ fprintf('\n');
 for cc=1:nCond
     fprintf('Accuracy for %s: %.2f +/- %.2f\n', condlabs{cc},mean(acc(:,cc))*100, std(acc(:,cc))/sqrt(nSubj)*100)
 end
-fprintf('signed rank test p value: %.3f\n',p_diff);
 fprintf('parametric paired test tstat=%.3f, df=%d, p value: %.3f\n',stats.tstat,stats.df,p_ttest);
 fprintf('num subj showing same effect: %d\n',sum(acc(:,1)>acc(:,2)));
 
@@ -244,53 +207,16 @@ title('RT over all runs');
 ylabel('RT (s)');
 set(gcf,'Color','w');
 saveas(gcf,fullfile(figpath,'RT_allsubs.pdf'),'pdf');
-%% compare RT across conditions, signed rank test.
-numcores = 8;
-if isempty(gcp('nocreate'))
-    parpool(numcores);
-end
-rndseed = 886787;
-rng(rndseed,'twister')
-nPermIter=1000;
+%% compare RT across conditions
 
 realvals = RT_mean;
-
-% what is the sign-rank statistic for the real data?
-real_sr_stat= signrank_MMH(realvals(:,1),realvals(:,2));
-
-% determine before the parfor loop which conditions get randomly
-% swapped on each iteration (otherwise not deterministic)
-inds2swap = double(randn(nSubj,nPermIter)>0);
-inds2swap(inds2swap==0) = -1;
-
-rand_sr_stat = nan(nPermIter, 1);
-
-parfor ii=1:nPermIter          
-
-    % randomly permute the condition labels within subject
-    randvals=realvals;
-    randvals(inds2swap(:,ii)==-1,:) = randvals(inds2swap(:,ii)==-1,[2,1]);    
-    % what is the sign-rank statistic for this randomly permuted data?
-    rand_sr_stat(ii) = signrank_MMH(randvals(:,1),randvals(:,2));
-
-end
-
-
-% compute a two-tailed p-value comparing the real stat to the random
-% distribution. Note that the <= and >= are inclusive, because any
-% iterations where real==null should count toward the null hypothesis. 
-p_diff_sr = 2*min([mean(real_sr_stat>=rand_sr_stat), ...
-    mean(real_sr_stat<=rand_sr_stat)],[],2);
-p_diff = p_diff_sr;
 [h,p_ttest,ci,stats] = ttest(realvals(:,1),realvals(:,2));
-
 
 %% print out RT results
 fprintf('\n');
 for cc=1:nCond
     fprintf('RT for %s: %.2f +/- %.2f sec\n', condlabs{cc},mean(RT_mean(:,cc)), std(RT_mean(:,cc))/sqrt(nSubj))
 end
-fprintf('signed rank test p value: %.3f\n',p_diff);
 fprintf('parametric paired test tstat=%.3f, df=%d, p value: %.3f\n',stats.tstat,stats.df,p_ttest);
 fprintf('num subj showing same effect: %d\n',sum(RT_mean(:,1)<RT_mean(:,2)));
 
