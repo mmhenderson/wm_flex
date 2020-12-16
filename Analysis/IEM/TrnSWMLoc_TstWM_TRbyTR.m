@@ -1,7 +1,8 @@
-% MMH 3/11/20- train/test inverted encoding model for oriSpin data. 
+%% Train/test inverted encoding model.
+% training/testing on SPATIAL WORKING MEMORY MAPPING TASK, testing on main
+% task. Time-resolved, test each TR of main task.
 
-% training/testing on SPATIAL POSITION localizer, testing on task data.
-
+%%
 clear
 close all;
 

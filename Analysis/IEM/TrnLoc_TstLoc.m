@@ -1,7 +1,10 @@
-% MMH 3/11/20- train/test inverted encoding model for oriSpin data. 
-
-% training/testing on SPATIAL POSITION localizer, sanity check to make sure we
-% can get nicely tuned responses.
+%% Train/test inverted encoding model.
+% training/testing on SPATIAL POSITION localizer, check to make sure we
+% can get reasonable reconstruction fidelity in this task.
+% this is the task used to threshold visually-responsive voxels, so
+% technically this is circular since this data was used to choose the
+% voxels. 
+%%
 clear
 close all;
 

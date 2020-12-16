@@ -1,5 +1,7 @@
-% plot reconstructions 
-
+%% plot reconstructions 
+% training/testing on SPATIAL POSITION localizer, check to make sure we
+% can get reasonable reconstruction fidelity in this task.
+%%
 clear
 close all;
 
@@ -17,25 +19,28 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
 nROIs = length(ROI_names);
-
-plot_order1 = [1:5,10,11,6:9,12:14];  % visual ROIs
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+% reordering them a little for logical x-axis on plots
+plot_order1 = [1:5,10,11,6:9,12:14];  
+% Indices for Multiple-demand ROIs (not included in any of our main 
+% analyses, but can plot results for these separately if you wish).
+plot_order2 = [15:20]; 
 visual_names = ROI_names(plot_order1);
-plot_order2 = [15:20];   % MD and motor ROIs
-motor_names = ROI_names(plot_order2);
+md_names = ROI_names(plot_order2);
 plot_order_all = [plot_order1, plot_order2];
 vis_inds = find(ismember(plot_order_all,plot_order1));
-motor_inds = find(ismember(plot_order_all,plot_order2));
+md_inds = find(ismember(plot_order_all,plot_order2));
 
 plotVisualRecons = 1;
 plotVisualFids = 1;
-plotMotorMDRecons = 1;
-plotMotorMDFids = 1;
-
+plotMDRecons = 0;
+plotMDFids = 0;
 
 nVOIs = length(plot_order_all);
 
 ylims = [-5, 13];
 ylims_fid = [-0.1, 4];
+
 
 %%
 for ss=1:nSubj
@@ -146,17 +151,17 @@ end
 
 %% make plots: recons in motor/MD ROIs
  
-if plotMotorMDRecons
+if plotMDRecons
     figure;hold all;
     col = viridis(3);
     cc=1;
     % plot each subject and ROI as a separate subplot.
     for ss = 1:nSubj
-        for vv = 1:numel(motor_inds)
+        for vv = 1:numel(md_inds)
             
-            subplot(nSubj+1,numel(motor_inds),(ss-1)*numel(motor_inds)+vv);hold all;
+            subplot(nSubj+1,numel(md_inds),(ss-1)*numel(md_inds)+vv);hold all;
             
-            plot(xx,squeeze(avg_recs(ss,motor_inds(vv),:)),'Color',col(cc,:),'LineWidth',1);
+            plot(xx,squeeze(avg_recs(ss,md_inds(vv),:)),'Color',col(cc,:),'LineWidth',1);
        
             set(gca, 'FontSize', 12)
             set(gca,'XTick',[]);
@@ -169,23 +174,23 @@ if plotMotorMDRecons
             end
 
             if ss==1
-                if contains(motor_names{vv}, ' ')
+                if contains(md_names{vv}, ' ')
                     % break it into two strings 
-                    spaceind = find(motor_names{vv}==' ');
-                    title(sprintf('%s\n%s', motor_names{vv}(1:spaceind-1), motor_names{vv}(spaceind+1:end)));
+                    spaceind = find(md_names{vv}==' ');
+                    title(sprintf('%s\n%s', md_names{vv}(1:spaceind-1), md_names{vv}(spaceind+1:end)));
                 else               
-                    title(sprintf('%s', motor_names{vv}));
+                    title(sprintf('%s', md_names{vv}));
                 end
             end
             set(gcf,'Color','w')
         end
     end
     % now plot the average across subjects.
-    for vv = 1:numel(motor_inds)
+    for vv = 1:numel(md_inds)
             
-        subplot(nSubj+1,numel(motor_inds),(nSubj)*numel(motor_inds)+vv);hold all;
+        subplot(nSubj+1,numel(md_inds),(nSubj)*numel(md_inds)+vv);hold all;
       
-        recs = squeeze(avg_recs(:,motor_inds(vv),:));
+        recs = squeeze(avg_recs(:,md_inds(vv),:));
         if nSubj>1
             meanvals = nanmean(recs,1);
         else
@@ -234,9 +239,9 @@ if plotVisualFids
 end
 
 %% plot fidelity - motor
-if plotMotorMDFids
+if plotMDFids
     
-    vals = fidelity(:,motor_inds);
+    vals = fidelity(:,md_inds);
     if nSubj>1
         meanvals = squeeze(nanmean(vals,1));
         semvals = squeeze(nanstd(vals,[],1)./sqrt(sum(~isnan(vals),1)));
@@ -245,6 +250,6 @@ if plotMotorMDFids
         semvals =[];
     end
     
-    plot_barsAndStars(meanvals',semvals',[],[],[],ylims_fid,motor_names,[],'Fidelity','Train/Test Spatial Localizer',col(cc,:))
+    plot_barsAndStars(meanvals',semvals',[],[],[],ylims_fid,md_names,[],'Fidelity','Train/Test Spatial Localizer',col(cc,:))
   
 end

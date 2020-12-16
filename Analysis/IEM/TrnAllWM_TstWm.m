@@ -1,7 +1,7 @@
-% MMH 3/11/20- train/test inverted encoding model for oriSpin data. 
-
-% training/testing on SPATIAL POSITION localizer, sanity check to make sure we
-% can get nicely tuned responses.
+%% Train/test inverted encoding model.
+% training and testing on trials from both task conditions together (rather
+% than within each condition). 
+%%
 clear
 close all;
 

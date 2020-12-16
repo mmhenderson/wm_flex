@@ -1,6 +1,8 @@
-% MMH 3/11/20- train/test inverted encoding model for oriSpin data. 
-
-% training/testing within WM data
+%% Train/test inverted encoding model.
+% training and testing on trials within one task condition.
+% leave small number of trials out at a time. 
+% time resolved, train/test within each TR of task.
+%%
 clear
 close all;
 

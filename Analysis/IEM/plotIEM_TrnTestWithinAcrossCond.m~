@@ -26,10 +26,10 @@ plot_order1 = [1:5,10,11,6:9,12:14];
 % analyses, but can plot results for these separately if you wish).
 plot_order2 = [15:20];
 
-vismotor_names = ROI_names(plot_order1);
+visual_names = ROI_names(plot_order1);
 md_names = ROI_names(plot_order2);
 plot_order_all = [plot_order1,plot_order2];
-vismotor_inds = find(ismember(plot_order_all,plot_order1));
+vis_inds = find(ismember(plot_order_all,plot_order1));
 md_inds = find(ismember(plot_order_all,plot_order2));
 nROIs = length(plot_order_all);
 
@@ -130,7 +130,7 @@ if plotVisFidAvg
     sem_plot = squeeze(std(vals,[],1)./sqrt(nSubj));
     plot_barsAndStars(mean_plot,sem_plot,[],...
         [],chance_val,ylims_fid,vismotor_names,{'Within','Across'},...
-        'Fidelity','Spatial Memory Position',col)
+        'Accuracy','Spatial Memory Position',col)
     set(gcf,'Position',[800,800,1200,420])
     
 end
@@ -145,7 +145,7 @@ if plotMDFid
    
     plot_barsAndStars(mean_plot,sem_plot,[],...
         [],chance_val,ylims_fid,md_names,condLabStrs,...
-        'Fidelity','Spatial Memory Position',col)
+        'Accuracy','Spatial Memory Position',col)
     set(gcf,'Position',[800,800,1200,420])
 end
 
@@ -154,11 +154,11 @@ col = gray(3);
 col= col(1:2,:);
 
 if plotMDFidAvg
-    vals = mean(fid_allsubs(:,md_inds,:,:),3);
+    vals = mean(acc_allsubs(:,md_inds,:,:),3);
     mean_plot = squeeze(mean(vals,1));
     sem_plot = squeeze(std(vals,[],1)./sqrt(nSubj));
     plot_barsAndStars(mean_plot,sem_plot,[],...
         [],chance_val,ylims_fid,md_names,{'Within','Across'},...
-        'Fidelity','Spatial Memory Position',col)
+        'Accuracy','Spatial Memory Position',col)
     set(gcf,'Position',[800,800,1200,420])
 end

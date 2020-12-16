@@ -1,7 +1,9 @@
-% MMH 3/11/20- train/test inverted encoding model for oriSpin data. 
+%% Train/test inverted encoding model.
+% training on one condition of the main task, testing on the other
+% condition. See if cross-condition encoding model is worse than within
+% condition. 
 
-% training/testing on SPATIAL POSITION localizer, sanity check to make sure we
-% can get nicely tuned responses.
+%%
 clear
 close all;
 
