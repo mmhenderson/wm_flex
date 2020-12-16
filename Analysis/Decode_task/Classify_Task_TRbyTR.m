@@ -1,10 +1,14 @@
-% MMH 3/12/20
-% classifying TASK for spatial WM task - random or predictable boundary?
-
+%% Task decoding analysis
+% Train and test linear decoder, using data from all trials of main task.
+% Labels are the conditions - random and predictable.
+% Train and test within TR for time-resolved decoding.
+% Saves the results in a mat file, can plot it using a separate script
+% (plotClassResults_Task_TRbyTR.m)
+%%
 clear
 close all;
 
-sublist = [2:6];
+sublist = [2:7];
 % find my root directory - up a few dirs from where i am now
 curr_dir = pwd;
 filesepinds = find(curr_dir==filesep);
@@ -12,16 +16,17 @@ nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
 addpath(fullfile(exp_path,'Analysis','stats_code'));
 
-nVox2Use = 10000;
-nPermIter=1000;
+nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
 
+% what kind of classifier using?
 class_str = 'normEucDist';
-% class_str = 'svmtrain_lin';
+% get ready for parallel pool operations
 numcores = 8;
 if isempty(gcp('nocreate'))
     parpool(numcores);
 end
-rndseed = 234234;
+rndseed = 686787;
 rng(rndseed,'twister');
 %% loop over subjects
 for ss=1:length(sublist)
@@ -69,7 +74,6 @@ for ss=1:length(sublist)
         cvLabs = sessLabs;
         nCV = numel(unique(cvLabs));
         
-%         for tr = [4]
         for tr = 1:nTRs_out
             
             % take out just data from this TR of interest.
@@ -104,9 +108,7 @@ for ss=1:length(sublist)
                 nVox2Use_now = [];
             end
 
-            %% define train and test set 
-
-            % same data here because we're not cross-generalizing or anything
+            %% run classifier
             trnDat = dat2use;
             trnLabs = condLabs;
             trnCV = cvLabs;
@@ -114,13 +116,12 @@ for ss=1:length(sublist)
             tstDat = dat2use;
             tstLabs = condLabs;
             tstCV = cvLabs;
-
-            %% run the classifier w/ balancing if needed
-
-
+            
+            % train/test the decoder - use a custom function to do
+            % cross-validation here. 
             [~,~,predLabs] = my_classifier_cross(trnDat,trnLabs,...
                 trnCV,tstDat, tstLabs,...
-                tstCV,class_str,100,nVox2Use_now,voxStatTable,1);
+                tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
 
             acc = mean(predLabs==tstLabs);
             dprime = get_dprime(predLabs, tstLabs,tstLabs);
@@ -137,28 +138,30 @@ for ss=1:length(sublist)
                 randaccs= nan(nPermIter, 1);              
                 randd = nan(nPermIter, 1);
 
-                parfor ii=1:nPermIter
-                    % randomize all labels (note this is across all runs,
-                    % so we're shuffling training and testing sets at once.
-                    randlabs_all=nan(size(trnLabs));
-                    assert(numel(unique(trnCV))==2)
-                    for se=1:2
+                % doing the shuffling before parfor loop 
+                randlabs_all = zeros(size(trnLabs,1),nPermIter);
+                for ii=1:nPermIter
+                     for se=1:2
                         % shuffle the data from one session at a time, so we
                         % don't un-balance the training sets. 
                         inds=trnCV==se;
                         dat2shuff=trnLabs(inds);
                         randlabs_all(inds) = dat2shuff(randperm(numel(dat2shuff)));
-                    end             
+                    end                 
+                end  
+                parfor ii=1:nPermIter
+                   randlabs=randlabs_all(:,ii);          
                     % run classifier with the random labels
-                    [~,~,predLabs] = my_classifier_cross(trnDat,randlabs_all,...
-                    trnCV,tstDat, randlabs_all,...
-                    tstCV,class_str,100,nVox2Use_now,voxStatTable,1);
+                    [~,~,predLabs] = my_classifier_cross(trnDat,randlabs,...
+                    trnCV,tstDat, randlabs,...
+                    tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
 
                     % get performance in each condition, for the random decoder
-                    randaccs(ii) = mean(predLabs==randlabs_all);                  
-                    randd(ii) = get_dprime(predLabs,randlabs_all,unique(randlabs_all));
+                    randaccs(ii) = mean(predLabs==randlabs);                  
+                    randd(ii) = get_dprime(predLabs,randlabs,unique(randlabs));
 
                 end
+                randaccs(1)
             else
                 fprintf('%s %s tr=%d, performance on real data is %.2f, skipping permutation test...\n',...
                 substr,ROI_names{vv},tr,allacc(vv,tr))

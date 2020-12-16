@@ -1,5 +1,8 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of task decoder
+% trained on main task data, within each TR (time resolved)
+% Decoding analysis itself performed in Classify_Task_TRbyTR.m and saved as mat
+% file. This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -19,30 +22,27 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
-
-plot_order = [1:5,10,11,6:9];  % visual
-% plot_order = [12:20];  % motor/MD areas
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+plot_order = [1:5,10,11,6:9,12:14]; 
 vis_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
 vis_inds = find(ismember(plot_order_all,plot_order));
 nROIs = length(plot_order_all);
 
-plotVisAcc=1;
-plotVisAccSS=1;
-plotVisDSS=1;
+plotVisAcc=1;   % plot subject-averaged decoding acc w error bars?
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
+
 class_str = 'normEucDist';
 
+% plotting and stats info
 acclims = [0.4, 1];
 dprimelims = [-0.2, 1.4];
 col = viridis(4);
 col = col(2,:);
-cc=1;
-% cc=1;
+
 alpha_vals=[0.05,0.01,0.001];
 alpha_ms = [8,16,24];
 alpha=alpha_vals(1);
@@ -51,7 +51,6 @@ alpha=alpha_vals(1);
 evts2plot = [3.5, 4.5, 16.5, 18.5];
 
 sig_heights = [0.93,0.96,0.99];
-% diff_col=[0.5, 0.5, 0.5];
 
 fs=20;  % font size for all plots
 ms=10;  % marker size for significance dots
@@ -60,11 +59,6 @@ nTRs_out = 30;
 trDur = 0.8;
 tax = trDur*(0:nTRs_out-1);
 lw =1;
-
-
-% condLabStrs = {'Predictable','Random'};
-% nConds = length(condLabStrs);
-
 
 acc_allsubs = nan(nSubj,nROIs,nTRs_out);
 d_allsubs = nan(nSubj,nROIs,nTRs_out);

@@ -1,5 +1,8 @@
-% script to plot the result of decoding analyses for oriSpin. 
-
+%% Plot accuracy of task decoder
+% trained on main task data.
+% Decoding analysis itself performed in Classify_Task.m and saved as mat
+% file. This script loads that file, does all stats and plotting. 
+%%
 clear
 close all;
 
@@ -16,25 +19,30 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'S1','M1','PMc',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
+% Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
+% reordering them a little for logical x-axis on plots
+plot_order1 = [1:5,10,11,6:9,12:14];  
+% Indices for Multiple-demand ROIs (not included in any of our main 
+% analyses, but can plot results for these separately if you wish).
+plot_order2 = [15:20]; 
 
-plot_order1 = [1:5,10,11,6:9,12:14];  % visual ROIs and motor ROIs
-plot_order2 = [15:20];  % MD ROIs (not super interested in these)
+plotVisMotorAcc = 1;    % make plots for retinotopic and motor ROIs?
+plotMDAcc=0;    % make plots for MD ROIs?
 
 vismotor_names = ROI_names(plot_order1);
 md_names = ROI_names(plot_order2);
-
 plot_order_all = [plot_order1,plot_order2];
 nROIs = length(plot_order_all);
-
 vismotor_inds = find(ismember(plot_order_all,plot_order1));
 md_inds = find(ismember(plot_order_all,plot_order2));
 
 nVox2Use = 10000;
 nPermIter=1000;
 chance_val=0.5;
-% class_str = 'svmtrain_lin';
+
 class_str = 'normEucDist';
 
+% parameters for plotting/stats
 acclims = [0.4, 0.9];
 dprimelims = [-0.2, 1.4];
 col = viridis(4);
@@ -45,9 +53,6 @@ alpha_vals=[0.05, 0.01, 0.001];
 alpha_ms = [8,16,24];
 alpha = alpha_vals(1);
 
-plotVisAcc = 1;
-plotMotorAcc = 1;
-plotMDAcc=1;
 %% load results
 
 acc_allsubs = nan(nSubj,nROIs);
@@ -77,12 +82,8 @@ assert(~any(isnan(d_allsubs(:))))
 vals = acc_allsubs;
 meanvals = squeeze(mean(vals,1))';
 semvals = squeeze(std(vals,[],1)./sqrt(nSubj))';
-% tstat = (meanvals-0.5)./semvals;
 
 randvals = accrand_allsubs;
-% meanvals_rand = squeeze(mean(randvals,1));
-% semvals_rand = squeeze(std(randvals,[],1)./sqrt(nSubj));
-% tstat_rand = (meanvals_rand-0.5)./semvals_rand;
 
 %% Wilcoxon signed rank test
 % for each permutation iteration, use this test to compare real data for all subj to
@@ -120,7 +121,7 @@ array2table(squeeze(sum(is_sig_ss(:,vismotor_inds),1))','RowNames',vismotor_name
 
 
 %% make a bar plot of acc - visual areas
-if plotVisAcc
+if plotVisMotorAcc
     bw=0.50;
     fs=14;
     meanVals=meanvals(vismotor_inds,:);
