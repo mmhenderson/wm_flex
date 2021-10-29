@@ -13,6 +13,7 @@ nDirsUp = 2;
 root = mypath(1:filesepinds(end-nDirsUp+1));
 
 sample_dir = fullfile(root,'Samples');
+figpath = fullfile(root,'figs');
 
 sublist = [2,3,4,5,6,7];
 
@@ -31,6 +32,7 @@ nROIs = length(ROI_names);
 vis_inds=[1:11];
 motor_inds = [12:14];
 mdloc_inds=[15:20];
+all_inds = [1:5,10,11,6:9,12:14];
 hemi_names = {'lh','rh'};
 
 %% print sizes of all visual (retinotopic) ROIs
@@ -63,6 +65,25 @@ for ss=1:length(sublist)
     end
 end
 
+%% print sizes of ROIs in the order reported in paper
+
+allareas_sizes = all_sizes(all_inds,:,:);
+my_areas_all = ROI_names(all_inds);
+fprintf('\nALL ROI SIZES:\n\n');   
+tab = array2table(reshape(allareas_sizes, length(my_areas_all), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_all);
+disp(tab)
+
+writetable(tab, fullfile(figpath, 'ROI_size_table.csv'), 'WriteRowNames', true)
+
+%% print sizes of motor (digit localizer) ROIs
+
+motor_sizes = all_sizes(motor_inds,:,:);
+my_areas_motor = ROI_names(motor_inds);
+fprintf('\nMOTOR ROI SIZES:\n\n');
+tab = array2table(reshape(motor_sizes, length(my_areas_motor), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_motor);
+disp(tab)
+
+
 %% print sizes of retinotopic ROIs
           
 visual_sizes = all_sizes(vis_inds,:,:);
@@ -70,6 +91,7 @@ my_areas_vis = ROI_names(vis_inds);
 fprintf('\nRETINOTOPIC ROI SIZES:\n\n');   
 tab = array2table(reshape(visual_sizes, length(my_areas_vis), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_vis);
 disp(tab)
+
 
 %% print sizes of motor (digit localizer) ROIs
 

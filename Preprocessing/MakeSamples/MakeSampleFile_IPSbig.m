@@ -13,7 +13,7 @@ close all
 
 subinit_big = {'BX','BR','CI','CA','CH','AV','CP'};
 subnum_big = [1,2,3,4,5,6,7];
-sub2do = [2];
+sub2do = [2:7];
 
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
@@ -51,7 +51,7 @@ for ss = sub2do
     feat_path = fullfile(exp_path, 'AnalyzeSpatLocalizer',substr,'feats','AllSessionsFE.gfeat');
    
     % the file I will save out.
-    fn2save = fullfile(out_path,sprintf('SampleFile_%s.mat',substr));
+    fn2save = fullfile(out_path,sprintf('SampleFile_IPSbig_%s.mat',substr));
    
     %% Localizer stats
     %Get the t-stat maps that I got from doing the GLM on my localizer(s)
@@ -142,7 +142,7 @@ for ss = sub2do
             
             % of these indices, which ones are above threshold from
             % localizer mask?
-            if ROIs(hh,vv).is_visual==1
+            if ROIs(hh,vv).is_visual==1 && (vv<6 || vv>9)
                 inds2use = intersect(voxel_inds_this_ROI, vox_above_thresh);
                 fprintf('%s %s %s: %.2f percent vox are above spatial localizer threshold\n',substr,hemis{hh},ROI_names{vv},numel(inds2use)/numel(voxel_inds_this_ROI)*100);
             else

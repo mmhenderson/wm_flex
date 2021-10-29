@@ -27,7 +27,7 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
 
 % Indices into "ROI_names" corresponding to visual ROIs and motor ROIs
-plot_order = [1:5,10,11,6:9,12:14];  
+plot_order = [12:14];  
 vismotor_names = ROI_names(plot_order);
 plot_order_all = [plot_order];
 vismotor_inds = find(ismember(plot_order_all,plot_order));

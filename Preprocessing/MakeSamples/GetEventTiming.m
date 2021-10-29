@@ -7,8 +7,8 @@ clear
 close all
 
 % set inputs
-FS_sbj = 'CP';
-subnum = 7;
+FS_sbj = 'AV';
+subnum = 6;
 substr = sprintf('S%02d',subnum);
 
 % find my root directory - up a few dirs from where i am now
@@ -47,15 +47,28 @@ bound_cols_odd_sess = {[153.5, 153.5, 153.5], [102.5, 102.5, 102.5]};
 bound_cols_even_sess = {[102.5, 102.5, 102.5], [153.5, 153.5, 153.5]};
 
 % get data file from each session (they are not concatenated here)
+% first figure out which sessions include main task data (make sure they're
+% in the correct numerical order to match nifti files)
 main_files = dir(fullfile(beh_path,substr,'Session*','*MainTask.mat'));
 main_files = main_files(~contains({main_files.name},'TRAINING'));
+main_sessions = [];
+for ff = 1:length(main_files)
+    filesepinds = find(main_files(ff).folder==filesep);
+    sessstr = main_files(ff).folder(filesepinds(end)+1:end);
+    main_sessions(ff) = str2double(sessstr(find(sessstr=='n')+1:end));
+end
+main_sessions = sort(unique(main_sessions),'ascend');
+
+
 assert(length(main_files)==nSess, 'should have exactly nSess sessions of main task data')
 
-for sess = 1:nSess
+for sess = 1:length(main_sessions)
 
-%     load([beh_path 'S' char(subnum) filesep 'Session' num2str(sess) filesep main_files(sess).name])
-    load(fullfile(main_files(sess).folder, main_files(sess).name));
-  
+    se = main_sessions(sess);
+    main_files = dir(fullfile(beh_path, substr,sprintf('Session%d',se), '*MainTask.mat'));
+    main_files = main_files(~contains({main_files.name},'TRAINING'));
+    load(fullfile(main_files(1).folder, main_files(1).name));
+
     
     if sess==1
         nTrialsEach = TheData(1).p.NumTrials;
@@ -209,12 +222,23 @@ if subnum~=1
     % get data file from each session (they are not concatenated here)
     swm_files = dir(fullfile(beh_path,substr,'Session*','*SWMLoc.mat'));
     swm_files = swm_files(~contains({swm_files.name},'TRAINING'));
+    swm_sessions = [];
+    for ff = 1:length(swm_files)
+        filesepinds = find(swm_files(ff).folder==filesep);
+        sessstr = swm_files(ff).folder(filesepinds(end)+1:end);
+        swm_sessions(ff) = str2double(sessstr(find(sessstr=='n')+1:end));
+    end
+    swm_sessions = sort(unique(swm_sessions),'ascend');
+    
     assert(length(swm_files)==nSess, 'should have exactly nSess sessions of swm task data')
 
-    for sess = 1:nSess
+    for sess = 1:length(swm_sessions)
 
-        load(fullfile(swm_files(sess).folder, swm_files(sess).name));
-
+        se = swm_sessions(sess);
+        swm_files = dir(fullfile(beh_path, substr,sprintf('Session%d',se), '*SWMLoc.mat'));
+        swm_files = swm_files(~contains({swm_files.name},'TRAINING'));
+        load(fullfile(swm_files(1).folder, swm_files(1).name));
+        
         if sess==1
             nTrialsEach = TheData(1).p.NumTrials;
         end
@@ -338,11 +362,25 @@ if subnum~=1
     % get data file from each session (they are not concatenated here)
     dwm_files = dir(fullfile(beh_path,substr,'Session*','*DWMLoc.mat'));
     dwm_files = dwm_files(~contains({dwm_files.name},'TRAINING'));
+    dwm_sessions = [];
+    for ff = 1:length(dwm_files)
+        filesepinds = find(dwm_files(ff).folder==filesep);
+        sessstr = dwm_files(ff).folder(filesepinds(end)+1:end);
+        dwm_sessions(ff) = str2double(sessstr(find(sessstr=='n')+1:end));
+    end
+    dwm_sessions = sort(unique(dwm_sessions),'ascend');
+   
     fprintf('found %d sessions of DWM loc data\n',length(dwm_files));
+    
+    % looping over all runs across all sessions for this subject.
+    % make sure we load sessions in numerical order, so that they'll match 
+    % nifti loading order.
+    for sess = 1:length(dwm_sessions)
 
-    for sess = 1:length(dwm_files)
-
-        load(fullfile(dwm_files(sess).folder, dwm_files(sess).name));
+        se = dwm_sessions(sess);
+        dwm_files = dir(fullfile(beh_path, substr,sprintf('Session%d',se), '*DWMLoc.mat'));
+        dwm_files = dwm_files(~contains({dwm_files.name},'TRAINING'));
+        load(fullfile(dwm_files(1).folder, dwm_files(1).name));
 
         if sess==1
             nTrialsEach = TheData(1).p.NumTrials;
@@ -471,90 +509,105 @@ EventLabels = [];
 PosLabels = [];
 
 % get data file from each session (they are not concatenated here)
+% first, figure out which scan sessions have any spatial localizer in them
 loc_files = dir(fullfile(beh_path, substr,'Session*', '*sIEM_1D*'));
+loc_sessions = [];
+for ff = 1:length(loc_files)
+    filesepinds = find(loc_files(ff).folder==filesep);
+    sessstr = loc_files(ff).folder(filesepinds(end)+1:end);
+    loc_sessions(ff) = str2double(sessstr(find(sessstr=='n')+1:end));
+end
+loc_sessions = sort(unique(loc_sessions),'ascend');
 
 % looping over all runs across all sessions for this subject.
-for rr = 1:length(loc_files)
-    currentRun = currentRun + 1;
+% make sure we load sessions in numerical order, so that they'll match 
+% nifti loading order.
+for si = 1:length(loc_sessions)
     
-    load(fullfile(loc_files(rr).folder, loc_files(rr).name));
+    se = loc_sessions(si);
+    loc_files = dir(fullfile(beh_path, substr,sprintf('Session%d',se), '*sIEM_1D*'));
+    
+    for rr = 1:length(loc_files)
+        currentRun = currentRun + 1;
 
-    if rr==1
-        nTrialsEach = p.nTrials;
-    end
-    assert(contains(p.subName, FS_sbj))
-    
-    % where are the centers of wedges 1-24? 
-    wedge_centers = 7.5:15:360; % these are in deg, clockwise from vertical.
-    % where are the centers of wedges on each randomized trial?
-    center_pos_each_trial = wedge_centers(p.trial_wedge)';
-    
-    % note that the 12.8 seconds have already been trimmed off here, this
-    % is from the time right after the 12.8 seconds have been completed.
-    Trial_onset = p.frameTime(p.trial_frame);
-    % these are super exact times - if you rounded them they'd be about 3
-    % sec apart. 
-    
-    % loop over trials and save a list of information about the events on
-    % each trial.
-    Event_onset = 0;  Event_type = 0; Event_trial_global = 0; Event_trial_local = 0;
-    for n = 1:nTrialsEach
+        load(fullfile(loc_files(rr).folder, loc_files(rr).name));
 
-        trialnumglobal = trialnumglobal+1;
+        if rr==1
+            nTrialsEach = p.nTrials;
+        end
+        assert(contains(p.subName, FS_sbj))
 
-        % list times for all events per trial
-        % here there is only 1 event per trial, the stim going on.
-        event_times_this_trial = [Trial_onset(n)];
+        % where are the centers of wedges 1-24? 
+        wedge_centers = 7.5:15:360; % these are in deg, clockwise from vertical.
+        % where are the centers of wedges on each randomized trial?
+        center_pos_each_trial = wedge_centers(p.trial_wedge)';
+
+        % note that the 12.8 seconds have already been trimmed off here, this
+        % is from the time right after the 12.8 seconds have been completed.
+        Trial_onset = p.frameTime(p.trial_frame);
+        % these are super exact times - if you rounded them they'd be about 3
+        % sec apart. 
+
+        % loop over trials and save a list of information about the events on
+        % each trial.
+        Event_onset = 0;  Event_type = 0; Event_trial_global = 0; Event_trial_local = 0;
+        for n = 1:nTrialsEach
+
+            trialnumglobal = trialnumglobal+1;
+
+            % list times for all events per trial
+            % here there is only 1 event per trial, the stim going on.
+            event_times_this_trial = [Trial_onset(n)];
+            Event_onset = [Event_onset, event_times_this_trial];
+            Event_type = [Event_type,  1]; % on
+            Event_trial_global = [Event_trial_global, repmat(trialnumglobal,1,length(event_times_this_trial))];  
+            Event_trial_local = [Event_trial_local, repmat(n,1,length(event_times_this_trial))];
+
+        end
+        % also concatenating on an offset, because there were no gaps between
+        % stims but there's a blank period at the end. 
+        event_times_this_trial = Trial_onset(n)+p.stim_dur;
         Event_onset = [Event_onset, event_times_this_trial];
-        Event_type = [Event_type,  1]; % on
+        Event_type = [Event_type,  0]; % off
         Event_trial_global = [Event_trial_global, repmat(trialnumglobal,1,length(event_times_this_trial))];  
         Event_trial_local = [Event_trial_local, repmat(n,1,length(event_times_this_trial))];
 
+
+        % Find onset times for all my TRs
+        TR_onset = 0:TRdur:nTRs_spatloc*TRdur;
+        TR_onset = TR_onset(1:end-1);
+
+        % Now we want to go through and map every event to the TR when it
+        % happened. We'll save out a list nTRs long, describing which event and
+        % trial number is occuring at that TR.
+        eventlabs_byTR = nan(1,length(TR_onset));
+        triallabslocal_byTR = nan(1,length(TR_onset));
+        triallabsglobal_byTR = nan(1,length(TR_onset));
+
+        for i = 1:length(TR_onset)
+
+            middleofTR = TR_onset(i)+(TRdur/2);
+            myind = find(middleofTR>Event_onset, 1, 'last');
+
+            % on this TR - what type of of event is happening, and what global
+            % trial number and run number is it a part of?
+            eventlabs_byTR(i) = Event_type(myind);
+            triallabslocal_byTR(i) = Event_trial_local(myind);
+            triallabsglobal_byTR(i) = Event_trial_global(myind);
+        end
+
+         % make sure that the first TR of every trial is a 1
+        for n = 1:nTrialsEach           
+            eventlabs_byTR(find(triallabslocal_byTR==n,1))= 1;
+        end
+
+        numZeros = sum(triallabslocal_byTR==0);
+
+        RunLabels = [RunLabels, repmat(currentRun,1,length(TR_onset))];
+        TrialLabels = [TrialLabels, triallabsglobal_byTR];
+        EventLabels = [EventLabels, eventlabs_byTR];   
+        PosLabels = [PosLabels;nan(numZeros,1);center_pos_each_trial(triallabslocal_byTR(numZeros+1:end))];
     end
-    % also concatenating on an offset, because there were no gaps between
-    % stims but there's a blank period at the end. 
-    event_times_this_trial = Trial_onset(n)+p.stim_dur;
-    Event_onset = [Event_onset, event_times_this_trial];
-    Event_type = [Event_type,  0]; % off
-    Event_trial_global = [Event_trial_global, repmat(trialnumglobal,1,length(event_times_this_trial))];  
-    Event_trial_local = [Event_trial_local, repmat(n,1,length(event_times_this_trial))];
-
-    
-    % Find onset times for all my TRs
-    TR_onset = 0:TRdur:nTRs_spatloc*TRdur;
-    TR_onset = TR_onset(1:end-1);
-
-    % Now we want to go through and map every event to the TR when it
-    % happened. We'll save out a list nTRs long, describing which event and
-    % trial number is occuring at that TR.
-    eventlabs_byTR = nan(1,length(TR_onset));
-    triallabslocal_byTR = nan(1,length(TR_onset));
-    triallabsglobal_byTR = nan(1,length(TR_onset));
-
-    for i = 1:length(TR_onset)
-
-        middleofTR = TR_onset(i)+(TRdur/2);
-        myind = find(middleofTR>Event_onset, 1, 'last');
-
-        % on this TR - what type of of event is happening, and what global
-        % trial number and run number is it a part of?
-        eventlabs_byTR(i) = Event_type(myind);
-        triallabslocal_byTR(i) = Event_trial_local(myind);
-        triallabsglobal_byTR(i) = Event_trial_global(myind);
-    end
-
-     % make sure that the first TR of every trial is a 1
-    for n = 1:nTrialsEach           
-        eventlabs_byTR(find(triallabslocal_byTR==n,1))= 1;
-    end
-
-    numZeros = sum(triallabslocal_byTR==0);
-
-    RunLabels = [RunLabels, repmat(currentRun,1,length(TR_onset))];
-    TrialLabels = [TrialLabels, triallabsglobal_byTR];
-    EventLabels = [EventLabels, eventlabs_byTR];   
-    PosLabels = [PosLabels;nan(numZeros,1);center_pos_each_trial(triallabslocal_byTR(numZeros+1:end))];
-    
 end
 
 spatLoc.RunLabels = RunLabels';
@@ -694,7 +747,7 @@ end
 
 %% Save timing file
 if ~exist(out_path, 'dir'), mkdir(out_path); end
-filename = fullfile(out_path,['TimingFile_', substr]);
+filename = fullfile(out_path,['TimingFile_', substr, '.mat']);
 fprintf('saving file to %s\n',filename);
 save(filename, 'main', 'swm','dwm','spatLoc','digLoc','-v7.3');
 

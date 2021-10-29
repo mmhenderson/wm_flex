@@ -17,6 +17,9 @@ figpath = fullfile(exp_path,'figs');
 sublist = [2,3,4,5,6,7];
 nSubj = length(sublist);
 subcolors = viridis(nSubj+1);
+% condition colors
+col = [125, 93, 175; 15, 127, 98]./255;
+
 
 condlabs = {'Predictable','Random'};
 
@@ -139,7 +142,44 @@ for si=1:length(sublist)
     end
 end
 
-%% plot accuracy overall on two tasks
+%% plot accuracy overall on two tasks (bar plot)
+gray_colors = gray(nSubj+1);
+sub_line_color = gray_colors(5,:);
+
+figure;hold all;
+meanvals = mean(acc,1);
+if nSubj>1
+    sevals = std(acc,[],1)./sqrt(nSubj);
+else
+    sevals = nan(size(meanvals));
+end
+
+% first make the actual bar plot
+b = bar(1:nCond, meanvals);
+b.FaceColor='flat';
+b.EdgeColor='flat';
+for cc=1:nCond
+    b.CData(cc,:) = col(cc,:);
+    errorbar(b.XData(cc),meanvals(cc),sevals(cc),'Marker','none',...
+            'LineStyle','none','LineWidth',1.5,'Color',col(cc,:),'CapSize',0);
+end
+
+% now adding single subjects in gray underneath
+for ss = 1:nSubj
+
+    h= plot(1:nCond, acc(ss,:),'-','Color',sub_line_color,'LineWidth',1.5); 
+    uistack(h,'bottom');
+end
+ylim([0.5, 1]);
+xlim([0,nCond+1]);
+set(gca,'XTick',[1,2],'XTickLabels',condlabs);
+
+title('Accuracy over all runs');
+ylabel('Accuracy');
+set(gcf,'Color','w');
+set(gcf,'Position',[400,400,400,600]);
+saveas(gcf,fullfile(figpath,'Acc_allsubs_bars.pdf'),'pdf');
+%% plot accuracy overall on two tasks (colored lines)
 
 figure;hold all;
 meanvals = mean(acc,1);
@@ -180,7 +220,45 @@ end
 fprintf('parametric paired test tstat=%.3f, df=%d, p value: %.3f\n',stats.tstat,stats.df,p_ttest);
 fprintf('num subj showing same effect: %d\n',sum(acc(:,1)>acc(:,2)));
 
-%% plot RT overall on two tasks
+%% plot RT overall on two tasks (bar plot)
+
+gray_colors = gray(nSubj+1);
+sub_line_color = gray_colors(5,:);
+
+figure;hold all;
+meanvals = mean(RT_mean,1);
+if nSubj>1
+    sevals = std(RT_mean,[],1)./sqrt(nSubj);
+else
+    sevals = nan(size(meanvals));
+end
+
+% first make the actual bar plot
+b = bar(1:nCond, meanvals);
+b.FaceColor='flat';
+b.EdgeColor='flat';
+for cc=1:nCond
+    b.CData(cc,:) = col(cc,:);
+    errorbar(b.XData(cc),meanvals(cc),sevals(cc),'Marker','none',...
+            'LineStyle','none','LineWidth',1.5,'Color',col(cc,:),'CapSize',0);
+end
+
+% now adding single subjects in gray underneath
+for ss = 1:nSubj
+
+    h= plot(1:nCond, RT_mean(ss,:),'-','Color',sub_line_color,'LineWidth',1.5); 
+    uistack(h,'bottom');
+end
+ylim([0, 1.5]);
+xlim([0,nCond+1]);
+set(gca,'XTick',[1,2],'XTickLabels',condlabs);
+
+title('RT over all runs');
+ylabel('RT (s)');
+set(gcf,'Color','w');
+set(gcf,'Position',[400,400,400,600]);
+saveas(gcf,fullfile(figpath,'RT_allsubs_bars.pdf'),'pdf');
+%% plot RT overall on two tasks (colored lines)
 
 figure;hold all;
 meanvals = mean(RT_mean,1);
