@@ -19,7 +19,8 @@ figpath = fullfile(exp_path,'figs');
 % here for plotting.
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
     'S1','M1','PMc'...
-    'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA','M1/S1 all'};
+    'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA'};
+nROIs_all = numel(ROI_names);
 
 hemi_names={'lh','rh'};
 
@@ -65,7 +66,7 @@ evts2plot = [3.5, 4.5, 16.5, 18.5];
 sig_heights = [0.42,0.455,0.49];
 diff_col=[0.5, 0.5, 0.5];
 
-ylims = [-0.5, 0.7];
+ylims = [-0.3, 0.7];
 difflims = [-0.5 0.5];
 
 col_resp = plasma(3);
@@ -80,106 +81,153 @@ for ss=1:length(sublist)
     
     substr = sprintf('S%02d',sublist(ss));
    
-    fn2load = fullfile(exp_path,'Samples',sprintf('MainTaskSignalByTrial_SepHemis_%s.mat',substr));
-    load(fn2load);
+    fn2load = fullfile(exp_path,'Samples',sprintf('SampleFile_%s.mat',substr));
+    load(fn2load, 'samplesMain','main','ROIs','all_vox_concat');
+    
+    %% load the timing file (made in GetEventTiming.m)
+    
+    fn = fullfile(exp_path,'Samples',sprintf('TimingFile_%s.mat',substr));
+    if ~exist(fn, 'file')
+        error('need to make timing file first, run GetEventTiming.m')
+    end
+    fprintf('Loading event timing file\n')
+    load(fn)
     
     %%
     for vi = 1:nROIs % for all visual areas I want to look at
         
         vv = plot_order_all(vi);
         fprintf('processing %s area %s\n', substr,ROI_names{vv});
+        if strcmp(ROI_names{vv},'PMc')
+            name2use='Premotor';
+        else 
+            name2use=ROI_names{vv};
+        end
+        %% pull out the data from each ROI
+        % want both hemispheres
+        [rowind1,colind1] = find(strcmp(reshape({ROIs.name},2,nROIs_all),sprintf('lh_%s',name2use)));
+        [rowind2,colind2] = find(strcmp(reshape({ROIs.name},2,nROIs_all),sprintf('rh_%s',name2use)));
+       
+        % jj gives indices into the all_vox_concat array
+        [~,jj]=intersect(all_vox_concat, ROIs(rowind1,colind1).voxel_inds);
+        mainDat_lh = samplesMain(:,jj);
+        % jj gives indices into the all_vox_concat array
+        [~,jj]=intersect(all_vox_concat, ROIs(rowind2,colind2).voxel_inds);
+        mainDat_rh = samplesMain(:,jj);
+      
+        assert(size(mainDat_lh,2)>0 && size(mainDat_rh,2)>0)
+        
+        fprintf('processing area %s\n', ROI_names{vv});
+        
+        %% now zscore the data from each run to normalize...
+        
+        nRuns = size(mainDat_lh,1)/nTRs; % hopefully 5 runs per session
+        if mod(nRuns,1)~=0
+            error('something bad happened here with mainDat run length')
+        end
+        for ii=1:nRuns
+            mainDat_lh(ii*nTRs-nTRs+1:ii*nTRs,:) = zscore(mainDat_lh(ii*nTRs-nTRs+1:ii*nTRs, :),1);
+            mainDat_rh(ii*nTRs-nTRs+1:ii*nTRs,:) = zscore(mainDat_rh(ii*nTRs-nTRs+1:ii*nTRs, :),1);
+        end
+        
+        assert(numel(unique(main.RunLabels))==nRuns);
+        %% label the data
+        % event labels are as follows:
+        % pre-targ cue, targ, delay1, cue, bound-preview, delay2,
+        % bound-actual, start ITI
+        % Event_type = [Event_type, [0.2, 1, 0, 0.3, 2, 0, 3, 0]];
+        event_labels_reshaped = reshape(main.EventLabels,nTRs,length(main.EventLabels)/nTRs);
 
-        % Pull out data from both sides, separately
-        % trials by TRs by voxels
-        dat_by_TR_lh = mainSig(vv,1).dat_by_TR;
-        dat_by_TR_rh = mainSig(vv,2).dat_by_TR;
-        if numel(dat_by_TR_lh)==0 && numel(dat_by_TR_rh)==0
-            fprintf('no voxels in area %s!\n',ROI_names{vv});
-            continue
+        % now find the actual onset of each trial - switch from 0.2 to 1
+        % (or 0 to 1)
+        trial_onset_bool = event_labels_reshaped==1;
+        trial_onset_bool = trial_onset_bool(:);
+        trial_onset_num = find(trial_onset_bool);
+
+        nTrials = nRuns*nTrialsPerRun;
+        assert(numel(trial_onset_num)==nTrials);
+        
+        %% get conditions
+
+        condLabs = zeros(size(main.EventLabels));
+        condLabs(trial_onset_num) = main.CondLabels(trial_onset_num); 
+        
+        respLabs = zeros(size(main.CorrectResp));
+        respLabs(trial_onset_num) = main.CorrectResp(trial_onset_num);
+        
+        unconds = unique(condLabs(condLabs~=0));
+        unresp = unique(respLabs(respLabs~=0));
+        
+        % now making a big list w 4 conditions, for the two task conditions
+        % and the left finger/right finger trials.
+        hrfConds = zeros(size(respLabs));
+        uu=0;
+        cl=zeros(numel(unresp)*numel(unconds),1);
+        rl=zeros(numel(unresp)*numel(unconds),1);
+        for cc=1:numel(unconds)
+            for rr=1:numel(unresp)
+                uu=uu+1;
+                cl(uu) = cc;
+                rl(uu) = rr;
+                hrfConds(condLabs==unconds(cc) & respLabs==unresp(rr)) = uu;
+            end
         end
 
-        condLabs = mainSig(vv,1).condLabs;
+        %% now do deconvolution to estimate the event related HRF associated with each event type.
+        % written in a very general way that can be applied to any data set -
+        % i.e. will be explicit about computing #of conditions, and will also
+        % include a constant term for each run even though we've zero-meaned 
+        % the data (so this model will be appropriate for analyzing raw data 
+        % that has large baseline shifts between runs as well).
 
-        dist_to_bound = mainSig(1).dist_to_real_bound;
+        nHRFConds = numel(unique(hrfConds))-1;      % minus 1 because we're not modelling 0's, just donuts and small circles.
+        nMainRuns = numel(unique(main.RunLabels));   % can do this size(oriLocDat,1)/oriLocTRs, but we'll use this method so that we can cross-check each approach (see error checking inside of the doDecon func)
 
-        respLabs = mainSig(1,1).CorrectResp;
-
-        % calculate what the response should be for the RANDOM TRIALS
-        % at this point (what is the response associated with the random
-        % preview disk)? this is irrelevant to the task, but may be 
-        % automatically represented.
-%         targ_pos = mainSig(1,1).targPos;
-%         preview_bound_pos = mainSig(1,1).randBoundPos;
-%         preview_bound_pos(condLabs==1) = mainSig(1,1).boundPos(condLabs==1);
-%         resp_assoc_preview = zeros(size(targ_pos));
-%         over180 = preview_bound_pos>180;
-%         resp_assoc_preview(over180 &...
-%             targ_pos<preview_bound_pos &...
-%             targ_pos>mod(preview_bound_pos+180,360)) = 2;
-%         resp_assoc_preview(over180 & ...
-%             (targ_pos>preview_bound_pos |...
-%             targ_pos<mod(preview_bound_pos+180,360))) = 1;
-%         resp_assoc_preview(~over180 &...
-%             targ_pos>preview_bound_pos &...
-%             targ_pos<mod(preview_bound_pos+180,360)) = 1;
-%         resp_assoc_preview(~over180 &...
-%             (targ_pos<preview_bound_pos |...
-%             targ_pos>mod(preview_bound_pos+180,360))) = 2;
-%         
-%         
-%         % check that the above code is working by making sure it gets the
-%         % right answer for the predictable trials
-%         assert(all(resp_assoc_preview(condLabs==1)==respLabs(condLabs==1)));
-
-        % using the response associated with the final boundary disk
-        resp_label = respLabs;
+        maintaskHRFs_lh = doDecon_ForRR(mainDat_lh, hrfConds, nHRFConds, nMainRuns, nTRs, nTRs_out);
+        maintaskHRFs_rh = doDecon_ForRR(mainDat_rh, hrfConds, nHRFConds, nMainRuns, nTRs, nTRs_out);
         
-        % take an average over voxels and save it for later
-        for cc = 1:nConds
-
+        for cc=1:nConds
             for rr=1:nResp
 
-                % rr=1 for contra 
-                    % want data from lh in brain, when right finger (respLabs==2) was used)
-                    % want data from rh in brain, when left finger (respLabs==1) was used)
-                % rr=2 for ipsi 
-                    % want data from lh in brain, when left finger (respLabs==1) was used)
-                    % want data from rh in brain, when right finger (respLabs==2) was used)
-                if numel(dat_by_TR_lh)>0
-                    dat1 = dat_by_TR_lh(condLabs==cc & resp_label==(3-rr),:,:);                        
-                else
-                    dat1=[];
-                end
-                if numel(dat_by_TR_rh)>0
-                    dat2 = dat_by_TR_rh(condLabs==cc & resp_label==rr,:,:);
-                else
-                    dat2=[];
-                end
-%                     dat = cat(3,dat1,dat2);
-                if isempty(dat2)
-                    mean_over_trials = mean(dat1,1);
-                elseif isempty(dat1)
-                    mean_over_trials = mean(dat2,1);
-                else
-                    mean_over_trials = cat(3,mean(dat1,1),mean(dat2,1));
-                end
-                if rr==1
-                    contradat_mean_over_trials = mean_over_trials;
-                elseif rr==2
-                    ipsidat_mean_over_trials = mean_over_trials;
-                end
-                allsub_HRFs_mean(ss,vi,cc,rr,:) = mean(mean_over_trials,3);
-                allsub_HRFs_sem(ss,vi,cc,rr,:) = std(mean_over_trials,[],3)./sqrt(size(mean_over_trials,3));
+                  % now switching from l/r finger labels to
+                  % contralateral/.ipsilateral - so need to know which
+                  % hemisphere to take which trials from.
+                  
+                  % rr=1 for contra
+                  % want data from lh in brain, when right finger (respLabs==2) was used)
+                  % want data from rh in brain, when left finger (respLabs==1) was used)
+                  % rr=2 for ipsi
+                  % want data from lh in brain, when left finger (respLabs==1) was used)
+                  % want data from rh in brain, when right finger (respLabs==2) was used)
+                  
+                  uu_lh=find(cl==cc & rl==(3-rr));
+                  uu_rh=find(cl==cc & rl==rr);
+                  dat1 = squeeze(maintaskHRFs_lh(:,uu_lh,:));
+                  dat2 = squeeze(maintaskHRFs_rh(:,uu_rh,:));
+                  
+                  hrf_concat = cat(2,dat1,dat2);
+                  nVox = size(hrf_concat, 2);
+                  
+                  if rr==1
+                      contra_hrf_concat = hrf_concat;
+                  elseif rr==2
+                      ipsi_hrf_concat = hrf_concat;
+                  end
+                  
+                  allsub_HRFs_mean(ss,vi,cc,rr,:) = mean(hrf_concat,2);
+                  allsub_HRFs_sem(ss,vi,cc,rr,:) = std(hrf_concat,[],2)./sqrt(nVox);
+                  
             end
-
-            % now take the contra-ipsi difference
-            diffdat = contradat_mean_over_trials-ipsidat_mean_over_trials;
+              
+             % now take the contra-ipsi difference
+            diffdat = contra_hrf_concat-ipsi_hrf_concat;
 
             % avg and sem over voxels
-            allsub_HRFs_mean(ss,vi,cc,3,:) = mean(diffdat,3);
-            allsub_HRFs_sem(ss,vi,cc,3,:) = std(diffdat,[],3)./sqrt(size(diffdat,3));
+            allsub_HRFs_mean(ss,vi,cc,3,:) = mean(diffdat,2);
+            allsub_HRFs_sem(ss,vi,cc,3,:) = std(diffdat,[],2)./sqrt(nVox);
         
         end
+       
     end
 end
 
@@ -314,14 +362,15 @@ if plotVisMotor
                
             end
 
-            for aa=1:numel(alpha_vals)
+%             for aa=[3]
+            for aa=1:numel(alpha_vals)               
                 inds2plot=p_contraipsi_diff(vismotor_inds(vi),cc,:)<alpha_vals(aa);
                 plot(tax(inds2plot), repmat(sig_heights2(cc),sum(inds2plot),1),'.','Color',diff_col,'MarkerSize',alpha_ms(aa));
                 lh=[lh, plot(tax(1)-5, sig_heights2(cc),'.','Color',diff_col,'MarkerSize',alpha_ms(aa))];
                 ll{numel(ll)+1} = sprintf('p<%.03f',alpha_vals(aa));
             end
                 
-            set(gca, 'FontSize', 12, 'XLim',[0 max(tax)],'YLim',ylims)
+            set(gca, 'FontSize', 12, 'XLim',[0 max(tax)],'YLim',ylims,'YTick',[0, 0.5])
             h=plot(get(gca,'XLim'),[0,0],'--','Color',[0.7, 0.7, 0.7]);
             uistack(h,'bottom')
             for ee = 1:length(evts2plot)
