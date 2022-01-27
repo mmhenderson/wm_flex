@@ -1,4 +1,4 @@
-# orispin2
+# wm_remap
 Spatial working memory task with random and predictable responses. 
 
 ## ExptScripts
