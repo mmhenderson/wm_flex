@@ -97,7 +97,7 @@ for ss=1:length(sublist)
                 % preallocate array here
                 % ngroups is the two binary classifications that get done -
                 % 0 versus 90, and 45 versus 135
-                nGroups=2;
+                nGroups=4;
                 allacc = nan(length(ROI_names), nConds, nGroups);
                 alld = nan(length(ROI_names), nConds, nGroups);
             end
@@ -143,7 +143,7 @@ for ss=1:length(sublist)
             % going to do four different classifications - bin 1 versus bin 3,
             % and bin 2 versus bin 4, etc
             groups = [1,3; 2,4; 5,7; 6,8];
-            for xx = 1:2
+            for xx = 1:nGroups
 
                 inds2use = binLabs==groups(xx,1) | binLabs==groups(xx,2);
 
