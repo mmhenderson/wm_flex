@@ -42,7 +42,7 @@ acclims = [0.4, 0.9];
 dprimelims = [-0.2, 1.4];
 col = [125, 93, 175; 15, 127, 98]./255;
 
-condLabStrs = {'Predictable','Random'};
+condLabStrs = {'Informative','Uninformative'};
 nConds = length(condLabStrs);
 
 chance_val=0.5;
@@ -61,7 +61,8 @@ for ss=1:length(sublist)
     
     
     save_dir = fullfile(curr_dir,'Decoding_results');
-    fn2load = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
+    fn2load = fullfile(save_dir,sprintf('ClassifyBoundary360_%s_%dvox_%s.mat',class_str,nVox2Use,substr));    
+%     fn2load = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     assert(size(allacc,1)==numel(ROI_names));
     acc_allsubs(ss,:,:) = mean(squeeze(allacc(plot_order_all,:,:)),3);
@@ -72,9 +73,12 @@ end
 assert(~any(isnan(acc_allsubs(:))))
 assert(~any(isnan(d_allsubs(:))))
 
-%% make a bar plot of acc - visual areas
+%% make a bar plot of decoding acc, with single subjects overlaid
+bw=0.50;
+fs=14;
+
 if plotVisMotorAcc
-   
+    
     vals = squeeze(acc_allsubs(:,vismotor_inds,:));
     if nSubj>1
         meanvals =squeeze(mean(vals,1));
@@ -83,20 +87,117 @@ if plotVisMotorAcc
         meanvals = vals;
         semvals =[];
     end
-    plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,vismotor_names,condLabStrs,'Accuracy','Classify Boundary Preview Orientation',col)
-end
-
-
-%% make a bar plot of acc - motor areas
-if plotMDAcc
+   
+    meanVals=meanvals;
+    seVals=semvals;
     
-    vals = squeeze(acc_allsubs(:,md_inds,:));
-    if nSubj>1
-        meanvals = squeeze(mean(vals,1));
-        semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
-    else
-        meanvals = vals;
-        semvals =[];
+    sub_colors = gray(nSubj+1);
+    set(groot,'DefaultLegendAutoUpdate','off');
+    fh = figure();hold on;
+    % first make the actual bar plot
+    b = bar(gca,meanVals);
+    lh=[b(1),b(2)];
+    
+    % have to set this to "modal", otherwise it fails to get the XOffset
+    % property.
+    set(fh, 'WindowStyle','modal','WindowState','minimized')
+    bar_offset = [b.XOffset];
+    barPos = repmat((1:size(meanVals,1))', 1, length(bar_offset)) + repmat(bar_offset, size(meanVals,1), 1);
+    for cc=1:nConds
+        b(cc).FaceColor = col(cc,:);
+        b(cc).EdgeColor = col(cc,:);
+        errorbar(barPos(:,cc),meanVals(:,cc),seVals(:,cc),'Marker','none',...
+                'LineStyle','none','LineWidth',1,'Color',[0,0,0]);
     end
-    plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,md_names,condLabStrs,'Accuracy','Classify Boundary Preview Orientation',col)
+
+    set(gca,'XTick', 1:numel(vismotor_inds))
+    set(gca,'XTickLabel', vismotor_names,'XTickLabelRotation',90);
+    ylabel('Accuracy')
+    set(gca,'YLim',acclims)
+    set(gca,'XLim',[0,numel(vismotor_inds)+1])
+    if chance_val~=0
+        line([0,numel(vismotor_inds)+1],[chance_val,chance_val],'Color','k');
+    end
+    set(gca,'FontSize',fs);
+    set(gcf,'Position',[800,800,1200,500]);
+    % get locations of bars w offsets
+    c=get(gcf,'Children');b=get(c(end),'Children');
+   
+    verspacerbig = range(acclims)/50;
+    horspacer = abs(diff(bar_offset))/2;
+%     
+    for vv=1:numel(vismotor_inds)
+        % add individual subjects
+        for ss=1:nSubj
+            subvals = squeeze(acc_allsubs(ss,vismotor_inds(vv),:));
+            h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
+            uistack(h,'bottom');
+        end
+%         % add significance of individual areas/conditions
+%         for cc=1:nConds
+%             for aa=1:numel(alpha_vals)
+%                 if p_sr(vismotor_inds(vv),cc)<alpha_vals(aa)
+%                     % smaller dots get over-drawn with larger dots
+%                     plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+%                 end
+%             end
+%         end
+%         % add significance of condition differences
+%         for aa=1:numel(alpha_vals)
+%             if p_diff(vismotor_inds(vv))<alpha_vals(aa)
+%                 [mx,maxind] = max(meanVals(vv,:));
+%                 % smaller dots get over-drawn with larger dots
+%                 plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
+%                 plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
+%                 
+%             end
+%             if vv==1
+%                 lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
+%             end
+%         end
+    end
+    b(end).BarWidth=bw;
+    b(end-1).BarWidth=bw;
+    legend(lh, {'Informative', 'Uninformative'})
+%     leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+
+    set(gcf,'color','white')
+    set(gcf, 'WindowStyle','normal','WindowState','normal')
+    title('Classify orientation of "preview" disk (use 0-360 space)')
+%     title('Classify orientation of "preview" disk (use 0-180 space)')
+%     saveas(gcf,fullfile(figpath,'TrainSWM_TestWM_allareas.pdf'),'pdf');
 end
+% 
+% %% make a bar plot of acc - visual areas
+% fs=14;
+% if plotVisMotorAcc
+%    
+%     vals = squeeze(acc_allsubs(:,vismotor_inds,:));
+%     if nSubj>1
+%         meanvals =squeeze(mean(vals,1));
+%         semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
+%     else
+%         meanvals = vals;
+%         semvals =[];
+%     end
+%     plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,vismotor_names,condLabStrs,...
+%         'Accuracy','Classify orientation of "preview" disk (use 0-360 space)',col)
+%     set(gca,'FontSize',fs);
+%     set(gcf,'Position',[800,800,1200,500]);
+% end
+% 
+% 
+% %% make a bar plot of acc - motor areas
+% if plotMDAcc
+%     
+%     vals = squeeze(acc_allsubs(:,md_inds,:));
+%     if nSubj>1
+%         meanvals = squeeze(mean(vals,1));
+%         semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
+%     else
+%         meanvals = vals;
+%         semvals =[];
+%     end
+%     plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,md_names,condLabStrs,'Accuracy',...
+%         'Classify orientation of "preview" disk (use 0-360 space)',col)
+% end

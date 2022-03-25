@@ -1,7 +1,6 @@
 %% Classifying the orientation of the disk boundary. 
-% Ignoring which luminance value corresponded to which side:
-% bin the orientations (0-180) into 4 bins (0,45,90,135) and do binary 
-% classification between 0 vs 90, and 45 vs 135. 
+% Treating the orientations as a full 360 deg space, so 0/180 are not same
+% (because the disk sides are different)
 % Average these two decoding results.
 % This script saves a mat file with decoding performance, can plot it using
 % plotClassResults_Boundary.m
@@ -37,7 +36,7 @@ for ss=1:length(sublist)
     if ~isfolder(save_dir)
         mkdir(save_dir);
     end
-    fn2save = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
+    fn2save = fullfile(save_dir,sprintf('ClassifyBoundary360_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
 
    
     v2do = 1:length(ROI_names);
@@ -67,8 +66,9 @@ for ss=1:length(sublist)
             trials2use = condLabs==cc;
             
             boundLabs = boundLabs(trials2use);
-            % only want boundary ORIENTATION here, so 90/270 are same
-            boundLabs = round(mod(boundLabs,180),1);
+            boundLabs = round(boundLabs,1);
+%             % only want boundary ORIENTATION here, so 90/270 are same
+%             boundLabs = round(mod(boundLabs,180),1);
             mainDat = mainSig(vv).dat_by_TR;
             % make sure to add one to the tr index range, because the data
             % here is zero-indexed (the first TR is the TR at which event
@@ -79,12 +79,13 @@ for ss=1:length(sublist)
             % bin these for classifier - want 4 bins that are roughly centered at
             % 0, 45, 90, 135.
             binLabs = zeros(size(boundLabs));
-            nbins=4;
-            bin_centers=[0,45,90,135];
+            nbins=8;
+            bin_centers=0:45:360;
 
             bin_size=diff(bin_centers(1:2));
             for bb=1:nbins
-                inds_this_bin = abs(boundLabs-(bin_centers(bb)-0.0001))<bin_size/2 | abs((boundLabs-180)-(bin_centers(bb)-0.0001))<bin_size/2;
+                inds_this_bin = abs(boundLabs-(bin_centers(bb)-0.0001))<bin_size/2 | ...
+                                abs((boundLabs-360)-(bin_centers(bb)-0.0001))<bin_size/2;
                 binLabs(inds_this_bin) = bb;
             end
             assert(~any(binLabs==0))
@@ -139,9 +140,9 @@ for ss=1:length(sublist)
                 nVox2Use_now = [];
             end
 
-            % going to do two different classifications - bin 1 versus bin 3,
-            % and bin 2 versus bin 4
-            groups = [1,3;2,4];
+            % going to do four different classifications - bin 1 versus bin 3,
+            % and bin 2 versus bin 4, etc
+            groups = [1,3; 2,4; 5,7; 6,8];
             for xx = 1:2
 
                 inds2use = binLabs==groups(xx,1) | binLabs==groups(xx,2);
@@ -159,7 +160,7 @@ for ss=1:length(sublist)
                 % run classifier using custom code to cross-validate
                 [~,~,predLabs] = my_classifier_cross(trnDat,trnLabs,...
                     trnCV,tstDat, tstLabs,...
-                    tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
+                    tstCV,class_str,100,nVox2Use_now,voxStatTable,1);
 
                 acc = mean(predLabs==tstLabs);
                 dprime = get_dprime(predLabs, tstLabs,tstLabs);
