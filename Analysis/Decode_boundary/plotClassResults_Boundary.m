@@ -13,6 +13,8 @@ curr_dir = pwd;
 filesepinds = find(curr_dir==filesep);
 nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
+figpath = fullfile(exp_path,'figs');
+addpath(fullfile(exp_path,'Analysis','stats_code'))
 
 % names of the ROIs 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
@@ -42,17 +44,26 @@ acclims = [0.4, 0.9];
 dprimelims = [-0.2, 1.4];
 col = [125, 93, 175; 15, 127, 98]./255;
 
+alpha_vals=[0.05, 0.01, 0.001];
+alpha_ms = [8,16,24];
+alpha = alpha_vals(1);
+
 condLabStrs = {'Informative','Uninformative'};
 nConds = length(condLabStrs);
 
 chance_val=0.5;
+
+diff_col=[0.5, 0.5, 0.5];
+ms=10;  % marker size for significance dots
 
 plotVisMotorAcc = 1;    % make plots for retinotopic and motor ROIs?
 plotMDAcc=0;    % make plots for MD ROIs?
 
 %% load results
 
+nPermIter=1000;
 acc_allsubs = nan(nSubj,nROIs,nConds);
+accrand_allsubs = nan(nSubj,nROIs,nConds,nPermIter);
 d_allsubs = nan(nSubj,nROIs,nConds);
 
 for ss=1:length(sublist)
@@ -61,35 +72,142 @@ for ss=1:length(sublist)
     
     
     save_dir = fullfile(curr_dir,'Decoding_results');
-    fn2load = fullfile(save_dir,sprintf('ClassifyBoundary360_%s_%dvox_%s.mat',class_str,nVox2Use,substr));    
-%     fn2load = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
+%     fn2load = fullfile(save_dir,sprintf('ClassifyBoundary360_%s_%dvox_%s.mat',class_str,nVox2Use,substr));    
+    fn2load = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
     load(fn2load);
     assert(size(allacc,1)==numel(ROI_names));
     acc_allsubs(ss,:,:) = mean(squeeze(allacc(plot_order_all,:,:)),3);
     d_allsubs(ss,:,:) = mean(squeeze(alld(plot_order_all,:,:)),3);
+    
+    accrand_allsubs(ss,:,:,:) = mean(squeeze(allacc_rand(plot_order_all,:,:,:)),3);
+   
     
 end
 
 assert(~any(isnan(acc_allsubs(:))))
 assert(~any(isnan(d_allsubs(:))))
 
+% get some basic stats to use for the plots and tests below
+vals = acc_allsubs;
+meanvals = squeeze(mean(vals,1));
+semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
+
+
+randvals = accrand_allsubs;
+meanvals_rand = squeeze(mean(randvals,1));
+semvals_rand = squeeze(std(randvals,[],1)./sqrt(nSubj));
+
+%% 2-way RM anova on decoding values
+% using shuffling to compute significance of each effect
+numcores = 8;
+if isempty(gcp('nocreate'))
+    parpool(numcores);
+end
+rndseed = 242344;
+[p_vals, ranova_table, iter] = get_f_dist(acc_allsubs(:,vismotor_inds,:), nPermIter, rndseed, 0);
+
+% print results of the shuffling test
+f_vals = ranova_table{[3,5,7],[4]}';
+df = ranova_table{[3,5,7],[2]}';
+array2table([f_vals; df; p_vals],'RowNames',{'f','df','pval'},'VariableNames',{'ROI','Condition','interaction'})
+
+%% Wilcoxon signed rank test
+% for each permutation iteration, use this test to compare real data for all subj to
+% shuffled data for all subj.
+stat_iters_sr = nan(nROIs, nConds, nPermIter); 
+% stat_iters_rs2 = nan(nROIs, nConds, nPermIter); 
+
+real_rs_stat = nan(nROIs, nConds);
+shuff_rs_stat = nan(nROIs, nConds, nPermIter);
+
+for vv=1:nROIs
+    for cc=1:nConds
+        x = vals(:,vv,cc);
+
+        for ii=1:nPermIter
+            y = randvals(:,vv,cc,ii);
+            
+            % compare the median of real values against the median of the null, for this iteration.
+            % w>0 means real>null, w<0 means real<null, w=0 means equal
+            stat_iters_sr(vv,cc,ii) = signrank_MMH(x,y);
+        end
+    end
+end
+
+% final p value is the proportion of iterations where null was at least as
+% large as the real (e.g. the test stat was 0 or negative)
+p_sr = mean(stat_iters_sr<=0, 3);
+
+is_sig=p_sr<alpha;
+
+% print out how many which areas and conditions are significant across all
+% subs
+array2table([p_sr(vismotor_inds,1),p_sr(vismotor_inds,2)],...
+    'RowNames',vismotor_names,'VariableNames',{'pval_pred_signrank','pval_rand_signrank'})
+
+%% pairwise condition comparisons
+numcores = 8;
+if isempty(gcp('nocreate'))
+    parpool(numcores);
+end
+rndseed = 654655;
+rng(rndseed,'twister')
+
+real_sr_stat = nan(nROIs,1);
+rand_sr_stat = nan(nROIs, nPermIter);
+
+for vv=1:nROIs
+    realvals = squeeze(vals(:,vv,:));
+    
+    % what is the sign-rank statistic for the real data?
+    real_sr_stat(vv) = signrank_MMH(realvals(:,1),realvals(:,2));
+   
+    inds2swap = double(randn(nSubj,nPermIter)>0);
+    inds2swap(inds2swap==0) = -1;
+
+    parfor ii=1:nPermIter          
+        
+        % randomly permute the condition labels within subject
+        randvals=realvals;
+        randvals(inds2swap(:,ii)==-1,:) = randvals(inds2swap(:,ii)==-1,[2,1]);    
+        % what is the sign-rank statistic for this randomly permuted data?
+        rand_sr_stat(vv,ii) = signrank_MMH(randvals(:,1),randvals(:,2));
+
+    end
+end
+
+% compute a two-tailed p-value comparing the real stat to the random
+% distribution. Note that the <= and >= are inclusive, because any
+% iterations where real==null should count toward the null hypothesis. 
+p_diff_sr = 2*min([mean(repmat(real_sr_stat,1,nPermIter)>=rand_sr_stat,2), ...
+    mean(repmat(real_sr_stat,1,nPermIter)<=rand_sr_stat,2)],[],2);
+p_diff = p_diff_sr;
+diff_is_sig = p_diff<alpha;
+
+% print out which areas show a significant condition effect across all subj
+array2table([diff_is_sig(vismotor_inds), p_diff(vismotor_inds)],'RowNames',vismotor_names,'VariableNames',{'cond_diff','p'})
+
+%% compute individual subject significance of decoding
+vals = acc_allsubs;
+randvals = accrand_allsubs;
+% get p-values based on how often real<random
+p_ss = mean(repmat(vals,1,1,1,nPermIter)<randvals,4);
+is_sig_ss = p_ss<alpha;    % one tailed test
+
+% print out how many subjects were individually significant for each area
+array2table(squeeze(sum(is_sig_ss(:,vismotor_inds,:),1)),'RowNames',vismotor_names,'VariableNames',condLabStrs)
+
+% print out how many subjects individually showed condition difference in
+% the direction of the main effect (random>pred)
+array2table(squeeze(sum(vals(:,vismotor_inds,2)>vals(:,vismotor_inds,1),1))','RowNames',vismotor_names,'VariableNames',{'rand_gr_pred'})
+
 %% make a bar plot of decoding acc, with single subjects overlaid
 bw=0.50;
 fs=14;
-
 if plotVisMotorAcc
-    
-    vals = squeeze(acc_allsubs(:,vismotor_inds,:));
-    if nSubj>1
-        meanvals =squeeze(mean(vals,1));
-        semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
-    else
-        meanvals = vals;
-        semvals =[];
-    end
    
-    meanVals=meanvals;
-    seVals=semvals;
+    meanVals=meanvals(vismotor_inds,:);
+    seVals=semvals(vismotor_inds,:);
     
     sub_colors = gray(nSubj+1);
     set(groot,'DefaultLegendAutoUpdate','off');
@@ -133,71 +251,39 @@ if plotVisMotorAcc
             h=plot(vv+bar_offset,subvals,'.-','Color',sub_colors(5,:),'LineWidth',1.5);
             uistack(h,'bottom');
         end
-%         % add significance of individual areas/conditions
-%         for cc=1:nConds
-%             for aa=1:numel(alpha_vals)
-%                 if p_sr(vismotor_inds(vv),cc)<alpha_vals(aa)
-%                     % smaller dots get over-drawn with larger dots
-%                     plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
-%                 end
-%             end
-%         end
-%         % add significance of condition differences
-%         for aa=1:numel(alpha_vals)
-%             if p_diff(vismotor_inds(vv))<alpha_vals(aa)
-%                 [mx,maxind] = max(meanVals(vv,:));
-%                 % smaller dots get over-drawn with larger dots
-%                 plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
-%                 plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
-%                 
-%             end
-%             if vv==1
-%                 lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
-%             end
-%         end
+        % add significance of individual areas/conditions
+        for cc=1:nConds
+            for aa=1:numel(alpha_vals)
+                if p_sr(vismotor_inds(vv),cc)<alpha_vals(aa)
+                    % smaller dots get over-drawn with larger dots
+                    plot(vv+bar_offset(cc), meanVals(vv,cc)+seVals(vv,cc)+verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))
+                end
+            end
+        end
+        % add significance of condition differences
+        for aa=1:numel(alpha_vals)
+            if p_diff(vismotor_inds(vv))<alpha_vals(aa)
+                [mx,maxind] = max(meanVals(vv,:));
+                % smaller dots get over-drawn with larger dots
+                plot(vv+bar_offset, repmat(meanVals(vv,maxind)+seVals(vv,maxind)+2*verspacerbig,2,1),'-','Color','k','LineWidth',1)
+                plot(vv, meanVals(vv,maxind)+seVals(vv,maxind)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa));
+                
+            end
+            if vv==1
+                lh=[lh,plot(-1, meanVals(vv,1)+seVals(vv,1)+3*verspacerbig,'.','Color','k','MarkerSize',alpha_ms(aa))];
+            end
+        end
     end
     b(end).BarWidth=bw;
     b(end-1).BarWidth=bw;
-    legend(lh, {'Informative', 'Uninformative'})
-%     leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
-
+    leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+%     uistack(b(end),'top');
+%     uistack(b(end-1),'top')
     set(gcf,'color','white')
     set(gcf, 'WindowStyle','normal','WindowState','normal')
-    title('Classify orientation of "preview" disk (use 0-360 space)')
-%     title('Classify orientation of "preview" disk (use 0-180 space)')
-%     saveas(gcf,fullfile(figpath,'TrainSWM_TestWM_allareas.pdf'),'pdf');
+    title('Classify orientation of "preview" disk (use 0-180 space)')
+    saveas(gcf,fullfile(figpath,'Classify_boundary_orient_allareas.pdf'),'pdf');
+%     saveas(gcf,fullfile(figpath,'TrainTestWithinConds_allareas.pdf'),'pdf');
 end
-% 
-% %% make a bar plot of acc - visual areas
-% fs=14;
-% if plotVisMotorAcc
-%    
-%     vals = squeeze(acc_allsubs(:,vismotor_inds,:));
-%     if nSubj>1
-%         meanvals =squeeze(mean(vals,1));
-%         semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
-%     else
-%         meanvals = vals;
-%         semvals =[];
-%     end
-%     plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,vismotor_names,condLabStrs,...
-%         'Accuracy','Classify orientation of "preview" disk (use 0-360 space)',col)
-%     set(gca,'FontSize',fs);
-%     set(gcf,'Position',[800,800,1200,500]);
-% end
-% 
-% 
-% %% make a bar plot of acc - motor areas
-% if plotMDAcc
-%     
-%     vals = squeeze(acc_allsubs(:,md_inds,:));
-%     if nSubj>1
-%         meanvals = squeeze(mean(vals,1));
-%         semvals = squeeze(std(vals,[],1)./sqrt(nSubj));
-%     else
-%         meanvals = vals;
-%         semvals =[];
-%     end
-%     plot_barsAndStars(meanvals,semvals,[],[],chance_val,acclims,md_names,condLabStrs,'Accuracy',...
-%         'Classify orientation of "preview" disk (use 0-360 space)',col)
-% end
+
+

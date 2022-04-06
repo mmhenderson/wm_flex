@@ -18,6 +18,15 @@ nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
 
 nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
+nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
+
+% get ready for parallel pool operations
+numcores = 8;
+if isempty(gcp('nocreate'))
+    parpool(numcores);
+end
+rndseed = 576666;
+rng(rndseed,'twister');
 
 condLabStrs = {'Predictable','Random'};
 nConds = length(condLabStrs);
@@ -39,10 +48,7 @@ for ss=1:length(sublist)
     end
     fn2save = fullfile(save_dir,sprintf('ClassifyBoundary_%s_%dvox_%s.mat',class_str,nVox2Use,substr));
 
-   
-    v2do = 1:length(ROI_names);
-    for vv = v2do
-%     for vv = 1:length(ROI_names)
+    for vv = 1:length(ROI_names)
         
         %% pull out the data for main task
 
@@ -84,7 +90,8 @@ for ss=1:length(sublist)
 
             bin_size=diff(bin_centers(1:2));
             for bb=1:nbins
-                inds_this_bin = abs(boundLabs-(bin_centers(bb)-0.0001))<bin_size/2 | abs((boundLabs-180)-(bin_centers(bb)-0.0001))<bin_size/2;
+                inds_this_bin = abs(boundLabs-(bin_centers(bb)-0.0001))<bin_size/2 |...
+                                abs((boundLabs-180)-(bin_centers(bb)-0.0001))<bin_size/2;
                 binLabs(inds_this_bin) = bb;
             end
             assert(~any(binLabs==0))
@@ -92,13 +99,15 @@ for ss=1:length(sublist)
             % subtract mean over voxels 
             mainDat = mainDat - repmat(mean(mainDat,2), 1, size(mainDat, 2));
 
-            if vv==v2do(1) && cc==1
+            if vv==1 && cc==1
                 % preallocate array here
                 % ngroups is the two binary classifications that get done -
                 % 0 versus 90, and 45 versus 135
                 nGroups=2;
                 allacc = nan(length(ROI_names), nConds, nGroups);
                 alld = nan(length(ROI_names), nConds, nGroups);
+                allacc_rand = nan(length(ROI_names), nConds, nGroups, nPermIter);
+                alld_rand = nan(length(ROI_names), nConds, nGroups, nPermIter);
             end
             
             % doing cross-validation over sessions here, becuase this keeps
@@ -167,6 +176,41 @@ for ss=1:length(sublist)
                 allacc(vv,cc,xx) = acc;
                 alld(vv,cc,xx) = dprime;
                 
+                fprintf('%s %s cc=%d, xx=%d, performance on real data is %.2f, starting random shuffles over %d iters...\n',...
+                substr,ROI_names{vv},cc,xx,allacc(vv,cc,xx),nPermIter)
+            
+                % now doing the permutation test, shuffle labels 1000 times.
+                randaccs = nan(nPermIter, 1);
+                rand = nan(nPermIter, 1);
+                
+                % doing the shuffling before parfor loop 
+                randlabs_all = zeros(size(trnLabs,1),nPermIter);
+                for ii=1:nPermIter
+                    for cv=1:numel(unique(trnCV))
+                        % shuffle the data from one cross-validation fold at a time, so we
+                        % don't un-balance the training sets. 
+                        inds=trnCV==cv;
+                        dat2shuff=trnLabs(inds);
+                        randlabs_all(inds,ii) = dat2shuff(randperm(numel(dat2shuff)));
+                    end                    
+                end
+                parfor ii=1:nPermIter
+                  
+                    randlabs=randlabs_all(:,ii);                                      
+                    % run classifier with the random labels                  
+                    [~,~,thesepredlabs] = my_classifier_cross(trnDat,randlabs,...
+                        trnCV,tstDat, randlabs,...
+                        tstCV,class_str,100,nVox2Use_now,voxStatTable,0);
+                    % get performance in each condition, for the random decoder
+                    randaccs(ii) = mean(thesepredlabs==tstLabs);                        
+                    randd(ii) = get_dprime(thesepredlabs,tstLabs,unique(tstLabs));
+
+                end
+               
+                % put everything into a big array for saving
+                allacc_rand(vv,cc,xx,:) = randaccs;                   
+                alld_rand(vv,cc,xx,:) = randd;
+
             end
         end
         
@@ -174,6 +218,6 @@ for ss=1:length(sublist)
     end
 
     fprintf('saving to %s\n',fn2save);
-    save(fn2save,'allacc','alld');
+    save(fn2save,'allacc','alld','allacc_rand','alld_rand');
 
 end
