@@ -351,6 +351,28 @@ end
 suptitle('Accuracy versus difficulty');
 set(gcf,'Color','w');
 
+%% plot RT histograms, each condition
+figure;hold all;
+
+for cc = 1:nCond
+    
+    subplot(2,1,cc);hold all;
+    
+    dat = squeeze(RT_each_trial(:,cc,:,:,:));
+    dat = dat(~isnan(dat));
+    % print the minimum values
+    disp(min(dat))
+    histogram(dat,200,'FaceColor',col(cc,:),'EdgeColor',col(cc,:));
+    title(condlabs{cc})
+    plot([0.2, 0.2],get(gca,'YLim'),'k')
+    xlabel('RT (sec)')
+    ylabel('Number of trials')
+    xticks(0:0.2:3)
+    xlim([0,3])
+    set(gca,'TickDir','out')
+end
+saveas(gcf,fullfile(figpath,'RT_hist.pdf'),'pdf');
+    
 %% plot RT as a function of run number
 figure;hold all;
 
