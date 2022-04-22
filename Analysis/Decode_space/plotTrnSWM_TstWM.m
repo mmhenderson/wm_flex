@@ -2,7 +2,8 @@
 % trained on spatial working memory mapping task and tested on each
 % condition of main task
 % Decoding analysis itself performed in TrnSWMLoc_TstWM.m and saved as mat
-% file. This script loads that file, does all stats and plotting. 
+% file. 
+% This script loads that file, does all stats and plotting. 
 
 % Makes Figure 2B.
 %%
@@ -44,13 +45,13 @@ class_str = 'normEucDist';
 
 % parameters for plotting/stats
 acclims = [0.4, 0.9];
-col = [125, 93, 175; 15, 127, 98]./255;
+col = [3, 70, 124; 110, 172, 229]./255;
 
 alpha_vals=[0.05, 0.01, 0.001];
 alpha_ms = [8,16,24];
 alpha = alpha_vals(1);
 
-condLabStrs = {'Predictable','Random'};
+condLabStrs = {'Informative','Uninformative'};
 nConds = length(condLabStrs);
 
 chance_val=0.5;
@@ -138,8 +139,7 @@ p_sr = mean(stat_iters_sr<=0, 3);
 
 is_sig=p_sr<alpha;
 
-% print out how many which areas and conditions are significant across all
-% subs
+% print out which areas and conditions are significant across all subs
 array2table([p_sr(vismotor_inds,1),p_sr(vismotor_inds,2)],...
     'RowNames',vismotor_names,'VariableNames',{'pval_pred_signrank','pval_rand_signrank'})
 
@@ -273,7 +273,7 @@ for vv=1:numel(vismotor_inds)
 end
 b(end).BarWidth=bw;
 b(end-1).BarWidth=bw;
-leg=legend(lh,{'Predictable','Random','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
+leg=legend(lh,{'Informative','Uninformative','p<0.05','0<0.01','p<0.001'},'Location','EastOutside');
 
 set(gcf,'color','white')
 set(gcf, 'WindowStyle','normal','WindowState','normal')

@@ -3,6 +3,8 @@
 % condition of main task. Time-resolved (TR by TR)
 % Decoding analysis itself performed in TrnSWMLoc_TstWM_TRbyTR.m and saved 
 % as mat file. This script loads that file, does all stats and plotting. 
+
+% Makes Figure 2C, and Figure 2 - figure supplement 1.
 %%
 clear
 close all;
@@ -16,7 +18,7 @@ nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
 figpath = fullfile(exp_path,'figs');
 addpath(fullfile(exp_path,'Analysis','stats_code'))
-addpath(fullfile(exp_path,'Analysis','stats_code','bayesian-prevalence','matlab'))
+addpath(fullfile(exp_path,'Analysis','plotting_utils'));
 
 % names of the ROIs 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
@@ -39,7 +41,7 @@ class_str = 'normEucDist';
 
 % plotting and stats info
 acclims = [0.4, 1];
-col = [125, 93, 175; 15, 127, 98]./255;
+col = [3, 70, 124; 110, 172, 229]./255;
 
 alpha_vals=[0.05,0.01,0.001];
 alpha_ms = [8,14,20];
@@ -52,7 +54,7 @@ evts2plot = [3.5, 4.5, 16.5, 18.5];
 sig_heights = [0.90,0.94,0.98];
 diff_col=[0.5, 0.5, 0.5];
 
-fs=20;  % font size for all plots
+fs=12;  % font size for all plots
 ms=10;  % marker size for significance dots
 %% load results
 nTRs_out = 30;
@@ -61,7 +63,7 @@ tax = trDur*(0:nTRs_out-1);
 lw =1;
 
 
-condLabStrs = {'Predictable','Random'};
+condLabStrs = {'Informative','Uninformative'};
 nConds = length(condLabStrs);
 
 

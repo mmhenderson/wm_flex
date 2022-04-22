@@ -5,7 +5,7 @@
 % grouping spatial positions into 8 bins 45 deg wide, then doing binary
 % decoding between bins that are 180 deg apart (e.g. 0 vs 180). 
 % Saves the results in a mat file, can plot it using a separate script
-% (plotTrnSWM_TstWM.m)
+% (plotTrnSpatMap_TstWM.m)
 %%
 clear
 close all;
@@ -52,7 +52,7 @@ for ss=1:length(sublist)
     if ~isfolder(save_dir)
         mkdir(save_dir);
     end
-    fn2save = fullfile(save_dir,sprintf('TrnSpatMap_TestWM_%s_max%dvox_%s.mat',class_str, nVox2Use,substr));
+    fn2save = fullfile(save_dir,sprintf('TrnSpatMap_TestWM_BigBins_%s_max%dvox_%s.mat',class_str, nVox2Use,substr));
     
     %% loop over ROIs and run the model for each.
 
@@ -100,28 +100,27 @@ for ss=1:length(sublist)
         % bin these for classifier - want 8 bins that are roughly centered at
         % 0, 45, 90, 135. 
         % For the training set here (spatial mapping task) there were 24
-        % total "wedge" positions - to have bins that are centered at the
-        % right orients, we can ignore some of the bins. Basically taking
-        % the two bins right and left of 0, the two bins right and left of
-        % 45, etc. the one that falls in between (15-30 etc) gets ignored
-        % here. alternative is to include that bin in both decoders but
-        % this would lose spatial specificity.
+        % total "wedge" positions - here i'm including 4 wedge positions
+        % per bin. So, 25% of the wedges which are on a border between
+        % bins, end up getting used twice for the two diff decoders.
         
-        trnBinLabs = zeros(size(trnPosLabs));
+        trnBinLabs = zeros(size(trnPosLabs,1),2);   %make a second column because some wedges belong to two bins 
         for bb=1:nBins
-            inds_this_bin = abs(trnPosLabs-(bin_centers(bb)))<wedge_width_deg | abs((trnPosLabs-360)-(bin_centers(bb)))<wedge_width_deg;
-            trnBinLabs(inds_this_bin) = bb;
+            inds_this_bin = abs(trnPosLabs-(bin_centers(bb)))<wedge_width_deg*2 | abs((trnPosLabs-360)-(bin_centers(bb)))<wedge_width_deg*2;
+            already_counted = trnBinLabs(:,1)~=0;
+            trnBinLabs(inds_this_bin & ~already_counted,1) = bb;
+            trnBinLabs(inds_this_bin,2) = bb;
         end
         
         % now going in and removing the trials with the in-between wedge
         % positions, because won't use those in decoding.
-        inds2use_trn = trnBinLabs~=0;
-        trnBinLabs = trnBinLabs(inds2use_trn);
-        trnDat = trnDat(inds2use_trn,:);
+%         inds2use_trn = trnBinLabs~=0;
+%         trnBinLabs = trnBinLabs(inds2use_trn);
+%         trnDat = trnDat(inds2use_trn,:);
         
-        assert(~any(trnBinLabs==0))
-        neach_trn = sum(repmat(trnBinLabs,1,nBins)==repmat((1:nBins),size(trnBinLabs,1),1));
-        assert(all(neach_trn==neach_trn(1)));
+        assert(~any(trnBinLabs(:)==0))
+%         neach_trn = sum(repmat(trnBinLabs,1,nBins)==repmat((1:nBins),size(trnBinLabs,1),1));
+%         assert(all(neach_trn==neach_trn(1)));
         
         % same thing for test labels
         tstBinLabs = zeros(size(tstPosLabs));        
@@ -139,7 +138,7 @@ for ss=1:length(sublist)
             
             pvals = zeros(size(trnDat,2), 1);
             dat = trnDat;
-            lab = trnBinLabs;
+            lab = trnBinLabs(:,1);
             parfor vx = 1:size(dat,2)
                  % choose the voxels        
                [pvalue, stats] = anovan(dat(:,vx), lab,'display','off');
@@ -157,9 +156,22 @@ for ss=1:length(sublist)
             
             % taking out only trn and test trials with the relevant two
             % labels that we're trying to discriminate
-            inds2use_trn = ismember(trnBinLabs, groups(gg,:));
+            inds2use_trn = ismember(trnBinLabs(:,1), groups(gg,:)) | ismember(trnBinLabs(:,2), groups(gg,:));
             inds2use_tst = ismember(tstBinLabs, groups(gg,:));
-            reallabstrn = trnBinLabs(inds2use_trn);
+            
+            reallabstrn = trnBinLabs(inds2use_trn,:);
+            % make sure we grab whichever label is of interest for this
+            % decoder, not the other one.
+            use_second_column = ~ismember(reallabstrn(:,1),groups(gg,:));
+            reallabstrn(use_second_column,1) = reallabstrn(use_second_column,2);
+            reallabstrn = reallabstrn(:,1);
+            assert(sum(reallabstrn==groups(gg,1))==sum(reallabstrn==groups(gg,2)))
+            
+            reallabstst = tstBinLabs(inds2use_tst,1);
+            
+            assert(all(ismember(reallabstrn,groups(gg,:))));
+            assert(all(ismember(reallabstst,groups(gg,:))));
+            
             trnDatUse = trnDat(inds2use_trn, vox2use);
             tstDatUse = tstDat(inds2use_tst, vox2use);
             
@@ -168,7 +180,7 @@ for ss=1:length(sublist)
             
             % compute accuracy on the subset of test trials in each
             % condition separately
-            reallabstst = tstBinLabs(inds2use_tst);
+            
             tstconds = condLabs(inds2use_tst);            
             for cc=1:nConds
                 allacc(vv,cc,gg) = mean(thesepredlabs(tstconds==cc)==reallabstst(tstconds==cc));
