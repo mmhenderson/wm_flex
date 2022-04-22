@@ -1,4 +1,4 @@
-# wm_flex
+## Flexible utilization of spatial- and motor-based codes for the storage of visuo-spatial information.
 Spatial working memory task with random and predictable responses. 
 
 ## To access data
