@@ -34,11 +34,11 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
     - You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (spat_decoding_results.zip) and then start from the plotting stage. Results of decoding should be placed in a folder called "Decoding_results" inside the "Decode_space" directory.   
   - <b> Decode_response </b>
     - Code to perform multivariate decoding of upcoming motor actions (button press). 
-    - The files starting with "Trn..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. 
+    - The files starting with "Classify..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. 
     - You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (resp_decoding_results.zip) and then start from the plotting stage. Results of decoding should be placed in a folder called "Decoding_results" inside the "Decode_response" directory. 
   - <b> Decode_boundary </b>
     - Code to perform multivariate decoding of preview disk boundary. 
-    - The files starting with "Trn..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. 
+    - Classify_boundary.m does the decoding analyses, and plotClassResults_Boundary.m makes the plots and performs statistical testing. 
     - You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (bound_decoding_results.zip) and then start from the plotting stage. Results of decoding should be placed in a folder called "Decoding_results" inside the "Decode_boundary" directory. 
   - <b> stats_code </b>
     - General use code for statistical testing and for training/testing decoders.
