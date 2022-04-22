@@ -11,8 +11,12 @@ All preprocessing code, including unwarping of raw data, motion correction/regis
 Code to create "SampleFile" and "TimingFile" for each subject - these files are included in our OSF repository. <br>
 Code to create "XX_SignalByTrial_XX" files for each subject and each task - these files need to be re-created by running the code here.
 ## Analysis
-Code to reproduce all main analyses of behavior as well as fMRI data. Also includes additional analyses not included in our paper.
-
+### AnalyzeBehavior
+Code to analyze subject behavior on our main task as well as all localizer tasks. To run these, you'll need the behavioral data (located in our OSF repository as DataBehavior.zip). This should be unzipped into a folder called DataBehavior, on same level as the Analysis directory.
+### Univariate
+Code to perform deconvolution and make plots of deconvolved BOLD signal for each ROI.
+### Decode_space
+Code to perform multivariate decoding of remembered spatial position. The files starting with "Trn..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (spat_decoding_results.zip) and then make plots. Results of decoding should be placed in a folder "Decoding_results" inside the "Decode_space" directory. 
 ## To access data
 Preprocessed data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
 That repository includes files "SampleFile_S0X.mat" and "TimingFile_S0X.mat" for each subject. <br>
