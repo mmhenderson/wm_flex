@@ -9,7 +9,7 @@ Behavioral data from the experiments can be found in our OSF repository.
 All preprocessing code, including unwarping of raw data, motion correction/registration/detrending, ROI identification. We provide the fully pre-processed data in our OSF repository, so this code is not needed to reproduce our analyses, but it is provided here for convenience.
 ### MakeSamples
 Code to create "SampleFile" and "TimingFile" for each subject - these files are included in our OSF repository. <br>
-Code to create "avgSignal_XX" files for each subject and each task - these files need to be re-created by running the code here.
+Code to create "XX_SignalByTrial_XX" files for each subject and each task - these files need to be re-created by running the code here.
 ## Analysis
 Code to reproduce all main analyses of behavior as well as fMRI data. Also includes additional analyses not included in our paper.
 
@@ -24,3 +24,4 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
 - This code also does preprocessing and some initial analysis for ROIs in the frontoparietal Multiple-Demand network, which we did not analyze or include in our paper. 
 - Also included here is code for a button pressing task with a delayed response (referred to as DWM Loc), which is not analyzed or included in our paper.
 - Some files in this repo will have the string "OriSpin2" - this was the original codename for this experiment, but doesn't mean anything otherwise.
+- Sometimes in the code the conditions are referred to as "Predictable" and "Random" - these are older names for the conditions that we called "Informative" and "Uninformative"
