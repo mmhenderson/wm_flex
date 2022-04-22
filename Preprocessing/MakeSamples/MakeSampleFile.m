@@ -11,9 +11,11 @@
 clear
 close all
 
+% Note that S1 (BX) here is a pilot subject which is not included in our
+% main analyses - those all start with S2 (BR).
 subinit_big = {'BX','BR','CI','CA','CH','AV','CP'};
 subnum_big = [1,2,3,4,5,6,7];
-sub2do = [2];
+sub2do = [1,2,3,4,5,6,7];
 
 % find my root directory - up a few dirs from where i am now
 mypath = pwd;
@@ -24,6 +26,12 @@ hemis = {'lh', 'rh'};
 addpath('/usr/local/freesurfer6/matlab/')   % this folder has the load_nifti function we need
 
 % which areas do we want to load voxels from?
+% the first 14 areas here are the retinotopic and motor ROIs that we
+% included in our main analyses (note they're slightly out of order from how they appear
+% in figures). 
+% the next 6  'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA' are
+% areas in the multiple-demand network that we ran some initial analyses on
+% and didn't include in main analyses.
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
     'S1','M1','Premotor',...
     'IFS', 'AI-FO', 'iPCS', 'sPCS','sIPS','ACC-preSMA'};
