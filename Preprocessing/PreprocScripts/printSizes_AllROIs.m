@@ -29,9 +29,6 @@ ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2'
 
 nROIs = length(ROI_names);
 
-vis_inds=[1:11];
-motor_inds = [12:14];
-mdloc_inds=[15:20];
 all_inds = [1:5,10,11,6:9,12:14];
 hemi_names = {'lh','rh'};
 
@@ -75,36 +72,3 @@ disp(tab)
 
 writetable(tab, fullfile(figpath, 'ROI_size_table.csv'), 'WriteRowNames', true)
 
-%% print sizes of motor (digit localizer) ROIs
-
-motor_sizes = all_sizes(motor_inds,:,:);
-my_areas_motor = ROI_names(motor_inds);
-fprintf('\nMOTOR ROI SIZES:\n\n');
-tab = array2table(reshape(motor_sizes, length(my_areas_motor), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_motor);
-disp(tab)
-
-
-%% print sizes of retinotopic ROIs
-          
-visual_sizes = all_sizes(vis_inds,:,:);
-my_areas_vis = ROI_names(vis_inds);
-fprintf('\nRETINOTOPIC ROI SIZES:\n\n');   
-tab = array2table(reshape(visual_sizes, length(my_areas_vis), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_vis);
-disp(tab)
-
-
-%% print sizes of motor (digit localizer) ROIs
-
-motor_sizes = all_sizes(motor_inds,:,:);
-my_areas_motor = ROI_names(motor_inds);
-fprintf('\nMOTOR ROI SIZES:\n\n');
-tab = array2table(reshape(motor_sizes, length(my_areas_motor), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_motor);
-disp(tab)
-
-%% print sizes of MD localizer ROIs
-
-mdloc_sizes = all_sizes(mdloc_inds,:,:);
-my_areas_mdloc = ROI_names(mdloc_inds);
-fprintf('\nMULTIPLE-DEMAND ROI SIZES:\n\n');
-tab = array2table(reshape(mdloc_sizes, length(my_areas_mdloc), length(hemi_names)*length(sublist)), 'VariableNames',col_names, 'RowNames',my_areas_mdloc);
-disp(tab)
