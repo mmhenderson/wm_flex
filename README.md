@@ -53,3 +53,6 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
   - Some files in this repo will have the string "OriSpin2" - this was the original codename for this experiment, but doesn't mean anything otherwise.
   - Sometimes in the code the conditions are referred to as "Predictable" and "Random" - these are older names for the conditions that we called "Informative" and "Uninformative"
   - In the behavioral data directories (contained in DataBehavior.zip), there are many sessions for each participant, even though only 3 sessions were performed as part of this experiment. The remaining sessions contain data from localizer task runs that were performed during separate sessions (usually, earlier in time as part of other experiments).
+
+
+Please contact mmhender@cmu.edu with any questions or concerns. Thanks!
