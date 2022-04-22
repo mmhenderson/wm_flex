@@ -1,12 +1,12 @@
 %% Get the timing of all events in all runs of each task
 % saves out a file for each subject that is used by MakeSampleFile
-
-% MMH 9/5/18
+% The created files (TimingFile_S0X.mat) are included in OSF repository.
 %%
 clear
 close all
 
-% set inputs
+% set inputs - need to change these to initials and number of desired
+% subject.
 FS_sbj = 'AV';
 subnum = 6;
 substr = sprintf('S%02d',subnum);

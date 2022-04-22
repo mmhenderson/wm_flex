@@ -6,7 +6,7 @@
 % then gets used for further analyses.
 % All preprocessing of task data and analysis of the spatial localizer
 % (used for thresholding) are run before this. 
-
+% The created files (SampleFile_S0X.mat) are included in OSF repository.
 %%
 clear
 close all
