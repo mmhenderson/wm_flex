@@ -24,3 +24,4 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
 - This code also does preprocessing and some initial analysis for ROIs in the frontoparietal Multiple-Demand network, which we did not analyze or include in our paper. 
 - Also included here is code for a button pressing task with a delayed response (referred to as DWM Loc), which is not analyzed or included in our paper.
 - Some files in this repo will have the string "OriSpin2" - this was the original codename for this experiment, but doesn't mean anything otherwise.
+- Sometimes in the code the conditions are referred to as "Predictable" and "Random" - these are older names for the conditions that we called "Informative" and "Uninformative"
