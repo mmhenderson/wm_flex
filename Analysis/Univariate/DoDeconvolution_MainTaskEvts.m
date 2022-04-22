@@ -1,6 +1,10 @@
 %% Deconvolution on main task data. 
 % estimate BOLD resp amplitude for each type of event in each condition. 
 
+% This is used to generate univariate plots, shown in Figure 1D, and 
+% Figure 1 - figure supplement 1. 
+
+%%
 clear
 close all;
 sublist = [2:7];
@@ -12,6 +16,7 @@ nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 figpath = fullfile(exp_path,'figs');
 addpath(fullfile(exp_path,'Analysis','stats_code'));
+addpath(fullfile(exp_path,'Analysis','plotting_utils'));
 
 % names of the ROIs 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...

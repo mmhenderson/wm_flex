@@ -3,6 +3,7 @@
 % where either the left or right finger was to be pressed at end of delay. 
 % See when/where univariate motor signals emerge.
 
+% Used to generate Figure 1 - figure supplement 2.
 %%
 clear
 close all;
@@ -14,6 +15,8 @@ filesepinds = find(mypath==filesep);
 nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 figpath = fullfile(exp_path,'figs');
+addpath(fullfile(exp_path,'Analysis','stats_code'));
+addpath(fullfile(exp_path,'Analysis','plotting_utils'));
 
 % names of the ROIs - note the motor areas have been changed to nicer names
 % here for plotting.
