@@ -15,6 +15,7 @@ nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
 figpath = fullfile(exp_path,'figs');
 addpath(fullfile(exp_path,'Analysis','stats_code'))
+addpath(fullfile(exp_path,'Analysis','stats_code', 'bayesFactor'))
 
 % names of the ROIs 
 ROI_names = {'V1','V2','V3','V3AB','hV4','IPS0','IPS1','IPS2','IPS3','LO1','LO2',...
@@ -156,8 +157,13 @@ rng(rndseed,'twister')
 real_sr_stat = nan(nROIs,1);
 rand_sr_stat = nan(nROIs, nPermIter);
 
+bf_vals = nan(nROIs,1);
+
 for vv=1:nROIs
     realvals = squeeze(vals(:,vv,:));
+    
+    [bf10,p] = bf.ttest(realvals(:,1), realvals(:,2));
+    bf_vals(vv) = 1/bf10;
     
     % what is the sign-rank statistic for the real data?
     real_sr_stat(vv) = signrank_MMH(realvals(:,1),realvals(:,2));
@@ -185,7 +191,8 @@ p_diff = p_diff_sr;
 diff_is_sig = p_diff<alpha;
 
 % print out which areas show a significant condition effect across all subj
-array2table([diff_is_sig(vismotor_inds), p_diff(vismotor_inds)],'RowNames',vismotor_names,'VariableNames',{'cond_diff','p'})
+array2table([diff_is_sig(vismotor_inds), p_diff(vismotor_inds), bf_vals(vismotor_inds)],...
+    'RowNames',vismotor_names,'VariableNames',{'cond_diff','p','bayes_factor'})
 
 %% compute individual subject significance of decoding
 vals = acc_allsubs;
