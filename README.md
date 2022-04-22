@@ -1,4 +1,4 @@
-# wm_remap
+# wm_flex
 Spatial working memory task with random and predictable responses. 
 
 ## ExptScripts
