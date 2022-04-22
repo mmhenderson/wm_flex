@@ -9,7 +9,7 @@ Behavioral data from the experiments can be found in our OSF repository.
 All preprocessing code, including unwarping of raw data, motion correction/registration/detrending, ROI identification. We provide the fully pre-processed data in our OSF repository, so this code is not needed to reproduce our analyses, but it is provided here for convenience.
 ### MakeSamples
 Code to create "SampleFile" and "TimingFile" for each subject - these files are included in our OSF repository. <br>
-Code to create "avgSignal_XX" files for each subject and each task - these files need to be re-created by running the code here.
+Code to create "XX_SignalByTrial_XX" files for each subject and each task - these files need to be re-created by running the code here.
 ## Analysis
 Code to reproduce all main analyses of behavior as well as fMRI data. Also includes additional analyses not included in our paper.
 
