@@ -1,6 +1,13 @@
 # wm_flex
 Spatial working memory task with random and predictable responses. 
 
+## To access data
+Preprocessed data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
+That repository includes files "SampleFile_S0X.mat" and "TimingFile_S0X.mat" for each subject. <br>
+To re-create the files with names like "MainTaskSignalByTrial_S0X.mat", which are directly used by our decoding analyses, you should run the script: <br>
+Preprocessing/MakeSamples/get_trial_avg_signal_all.m
+
+## Contents of this repository:
 ## ExptScripts
 Code to generate stimulus sequences and run our fMRI experiments. Includes main task as well as all localizers.
 Behavioral data from the experiments can be found in our OSF repository.
@@ -17,11 +24,6 @@ Code to analyze subject behavior on our main task as well as all localizer tasks
 Code to perform deconvolution and make plots of deconvolved BOLD signal for each ROI.
 ### Decode_space
 Code to perform multivariate decoding of remembered spatial position. The files starting with "Trn..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (spat_decoding_results.zip) and then make plots. Results of decoding should be placed in a folder "Decoding_results" inside the "Decode_space" directory. 
-## To access data
-Preprocessed data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
-That repository includes files "SampleFile_S0X.mat" and "TimingFile_S0X.mat" for each subject. <br>
-To re-create the files with names like "MainTaskSignalByTrial_S0X.mat", which are directly used by our decoding analyses, you should run the script: <br>
-Preprocessing/MakeSamples/get_trial_avg_signal_all.m
 
 ## Other notes
 - In all code here, subjects 2-7 correspond to the 6 subjects included in the final analyses. Subject 1 participated in an early pilot version of the experiment and did not complete the final version of the experiment.
