@@ -1,5 +1,4 @@
-# wm_flex
-Spatial working memory task with random and predictable responses. 
+## Flexible utilization of spatial- and motor-based codes for the storage of visuo-spatial information.
 
 ## To access data
 Preprocessed data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
