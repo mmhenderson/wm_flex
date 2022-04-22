@@ -5,7 +5,6 @@
 % Average these two decoding results.
 % This script saves a mat file with decoding performance, can plot it using
 % plotClassResults_Boundary.m
-% note this analysis is not in our paper.
 %%
 clear
 close all;
@@ -16,6 +15,7 @@ curr_dir = pwd;
 filesepinds = find(curr_dir==filesep);
 nDirsUp = 2;
 exp_path = curr_dir(1:filesepinds(end-nDirsUp+1));
+addpath(fullfile(exp_path,'Analysis','stats_code'))
 
 nVox2Use = 10000;    % this is the max number of vox to use, so if it's very big we're using all the voxels.
 nPermIter = 1000;       % for generating null decoding accuracies, how many iterations of shuffling to do?
