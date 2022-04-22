@@ -2,7 +2,7 @@
 
 ### To access data:
 
-Preprocessed data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
+Preprocessed fMRI data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
 That repository includes files "SampleFile_S0X.mat" and "TimingFile_S0X.mat" for each subject, as well as behavioral data (DataBehavioral.zip). It also includes the saved results of our decoding analyses (i.e. accuracy and shuffled label accuracy) in files "spat_decoding_results.zip", "resp_decoding_results.zip" and "bound_decoding_results.zip". <br> <br>
 To re-create the files with names like "MainTaskSignalByTrial_S0X.mat", which are directly used by our decoding analyses, you should run the script at:
 Preprocessing/MakeSamples/get_trial_avg_signal_all.m
@@ -40,6 +40,10 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
     - Code to perform multivariate decoding of preview disk boundary. 
     - The files starting with "Trn..." in this folder perform the decoding analyses, and files starting with "plot..." make the plots and perform statistical testing. 
     - You can re-run the decoding analyes from scratch using this code, or load the results of decoding from our OSF repository (bound_decoding_results.zip) and then start from the plotting stage. Results of decoding should be placed in a folder called "Decoding_results" inside the "Decode_boundary" directory. 
+  - <b> stats_code </b>
+    - General use code for statistical testing and for training/testing decoders.
+  - <b> plotting_utils </b>
+    - General use code for making plots.
     
 ### Other notes:
 
