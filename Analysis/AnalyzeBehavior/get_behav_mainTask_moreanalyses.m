@@ -1,5 +1,6 @@
-% plot performance on main task, both conditions
-% perform stats comparing conditions
+% Plot performance on main task, both conditions
+
+% Includes additional behavioral analyses not reported in our paper.
 %%
 close all
 clear
@@ -10,8 +11,7 @@ filesepinds = find(mypath==filesep);
 nDirsUp = 2;
 exp_path = mypath(1:filesepinds(end-nDirsUp+1));
 
-addpath('/usr/local/serenceslab/serenceslab_toolboxes/CircStat2012a')
-addpath(fullfile(exp_path,'Analysis','stats_code'))
+addpath(fullfile(exp_path,'Analysis','plotting_utils'))
 figpath = fullfile(exp_path,'figs');
 
 sublist = [2,3,4,5,6,7];
@@ -142,162 +142,29 @@ for si=1:length(sublist)
     end
 end
 
-%% plot accuracy overall on two tasks (bar plot)
-gray_colors = gray(nSubj+1);
-sub_line_color = gray_colors(5,:);
 
+%% plot RT histograms, each condition
 figure;hold all;
-meanvals = mean(acc,1);
-if nSubj>1
-    sevals = std(acc,[],1)./sqrt(nSubj);
-else
-    sevals = nan(size(meanvals));
+
+for cc = 1:nCond
+    
+    subplot(2,1,cc);hold all;
+    
+    dat = squeeze(RT_each_trial(:,cc,:,:,:));
+    dat = dat(~isnan(dat));
+    % print the minimum values
+    disp(min(dat))
+    histogram(dat,200,'FaceColor',col(cc,:),'EdgeColor',col(cc,:));
+    title(condlabs{cc})
+    plot([0.2, 0.2],get(gca,'YLim'),'k')
+    xlabel('RT (sec)')
+    ylabel('Number of trials')
+    xticks(0:0.2:3)
+    xlim([0,3])
+    set(gca,'TickDir','out')
 end
-
-% first make the actual bar plot
-b = bar(1:nCond, meanvals);
-b.FaceColor='flat';
-b.EdgeColor='flat';
-for cc=1:nCond
-    b.CData(cc,:) = col(cc,:);
-    errorbar(b.XData(cc),meanvals(cc),sevals(cc),'Marker','none',...
-            'LineStyle','none','LineWidth',1.5,'Color',col(cc,:),'CapSize',0);
-end
-
-% now adding single subjects in gray underneath
-for ss = 1:nSubj
-
-    h= plot(1:nCond, acc(ss,:),'-','Color',sub_line_color,'LineWidth',1.5); 
-    uistack(h,'bottom');
-end
-ylim([0.5, 1]);
-xlim([0,nCond+1]);
-set(gca,'XTick',[1,2],'XTickLabels',condlabs);
-
-title('Accuracy over all runs');
-ylabel('Accuracy');
-set(gcf,'Color','w');
-set(gcf,'Position',[400,400,400,600]);
-saveas(gcf,fullfile(figpath,'Acc_allsubs_bars.pdf'),'pdf');
-%% plot accuracy overall on two tasks (colored lines)
-
-figure;hold all;
-meanvals = mean(acc,1);
-if nSubj>1
-    sevals = std(acc,[],1)./sqrt(nSubj);
-else
-    sevals = nan(size(meanvals));
-end
-lh=[errorbar(1:nCond,meanvals, sevals,'k')];
-
-ll = {'Mean'};
-% lh = [];
-for ss = 1:nSubj
-    ll{ss+1} = sprintf('S%02d',ss);
-    h= plot(1:nCond, acc(ss,:),'-','Color',subcolors(ss,:)); 
-    lh = [lh, h];
-end
-ylim([0.4,1.1]);
-xlim([0,nCond+1]);
-set(gca,'XTick',[1,2],'XTickLabels',condlabs);
-
-plot(get(gca,'XLim'), [0.5, 0.5],'--','Color',[0.8 0.8, 0.8]);
-title('Accuracy over all runs');
-ylabel('Accuracy');
-legend(lh,ll);
-set(gcf,'Color','w');
-saveas(gcf,fullfile(figpath,'Acc_allsubs.pdf'),'pdf');
-%% compare accuracy across conditions
-
-realvals = acc;
-[h,p_ttest,ci,stats] = ttest(realvals(:,1),realvals(:,2));
-
-%% print out accuracy results
-fprintf('\n');
-for cc=1:nCond
-    fprintf('Accuracy for %s: %.2f +/- %.2f\n', condlabs{cc},mean(acc(:,cc))*100, std(acc(:,cc))/sqrt(nSubj)*100)
-end
-fprintf('parametric paired test tstat=%.3f, df=%d, p value: %.3f\n',stats.tstat,stats.df,p_ttest);
-fprintf('num subj showing same effect: %d\n',sum(acc(:,1)>acc(:,2)));
-
-%% plot RT overall on two tasks (bar plot)
-
-gray_colors = gray(nSubj+1);
-sub_line_color = gray_colors(5,:);
-
-figure;hold all;
-meanvals = mean(RT_mean,1);
-if nSubj>1
-    sevals = std(RT_mean,[],1)./sqrt(nSubj);
-else
-    sevals = nan(size(meanvals));
-end
-
-% first make the actual bar plot
-b = bar(1:nCond, meanvals);
-b.FaceColor='flat';
-b.EdgeColor='flat';
-for cc=1:nCond
-    b.CData(cc,:) = col(cc,:);
-    errorbar(b.XData(cc),meanvals(cc),sevals(cc),'Marker','none',...
-            'LineStyle','none','LineWidth',1.5,'Color',col(cc,:),'CapSize',0);
-end
-
-% now adding single subjects in gray underneath
-for ss = 1:nSubj
-
-    h= plot(1:nCond, RT_mean(ss,:),'-','Color',sub_line_color,'LineWidth',1.5); 
-    uistack(h,'bottom');
-end
-ylim([0, 1.5]);
-xlim([0,nCond+1]);
-set(gca,'XTick',[1,2],'XTickLabels',condlabs);
-
-title('RT over all runs');
-ylabel('RT (s)');
-set(gcf,'Color','w');
-set(gcf,'Position',[400,400,400,600]);
-saveas(gcf,fullfile(figpath,'RT_allsubs_bars.pdf'),'pdf');
-%% plot RT overall on two tasks (colored lines)
-
-figure;hold all;
-meanvals = mean(RT_mean,1);
-if nSubj>1
-    sevals = std(RT_mean,[],1)./sqrt(nSubj);
-else
-    sevals = nan(size(meanvals));
-end
-lh=[errorbar(1:nCond,meanvals, sevals,'k')];
-
-ll = {'Mean'};
-for ss = 1:nSubj
-    ll{ss+1} = sprintf('S%02d',ss);
-%     h = errorbar(1:nCond, RT_mean(ss,:), RT_stdev(ss,:),'Color',subcolors(ss,:));
-    h= plot(1:nCond, RT_mean(ss,:),'-','Color',subcolors(ss,:)); 
-    lh = [lh, h];
-end
-ylim([0,2]);
-xlim([0,nCond+1]);
-set(gca,'XTick',[1,2],'XTickLabels',condlabs);
-legend(lh,ll);
-
-title('RT over all runs');
-ylabel('RT (s)');
-set(gcf,'Color','w');
-saveas(gcf,fullfile(figpath,'RT_allsubs.pdf'),'pdf');
-%% compare RT across conditions
-
-realvals = RT_mean;
-[h,p_ttest,ci,stats] = ttest(realvals(:,1),realvals(:,2));
-
-%% print out RT results
-fprintf('\n');
-for cc=1:nCond
-    fprintf('RT for %s: %.2f +/- %.2f sec\n', condlabs{cc},mean(RT_mean(:,cc)), std(RT_mean(:,cc))/sqrt(nSubj))
-end
-fprintf('parametric paired test tstat=%.3f, df=%d, p value: %.3f\n',stats.tstat,stats.df,p_ttest);
-fprintf('num subj showing same effect: %d\n',sum(RT_mean(:,1)<RT_mean(:,2)));
-
+saveas(gcf,fullfile(figpath,'RT_hist.pdf'),'pdf');
+    
 %% plot accuracy as a function of run number
 figure;hold all;
 
@@ -351,28 +218,6 @@ end
 suptitle('Accuracy versus difficulty');
 set(gcf,'Color','w');
 
-%% plot RT histograms, each condition
-figure;hold all;
-
-for cc = 1:nCond
-    
-    subplot(2,1,cc);hold all;
-    
-    dat = squeeze(RT_each_trial(:,cc,:,:,:));
-    dat = dat(~isnan(dat));
-    % print the minimum values
-    disp(min(dat))
-    histogram(dat,200,'FaceColor',col(cc,:),'EdgeColor',col(cc,:));
-    title(condlabs{cc})
-    plot([0.2, 0.2],get(gca,'YLim'),'k')
-    xlabel('RT (sec)')
-    ylabel('Number of trials')
-    xticks(0:0.2:3)
-    xlim([0,3])
-    set(gca,'TickDir','out')
-end
-saveas(gcf,fullfile(figpath,'RT_hist.pdf'),'pdf');
-    
 %% plot RT as a function of run number
 figure;hold all;
 

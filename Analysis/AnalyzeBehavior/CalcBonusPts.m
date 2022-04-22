@@ -14,8 +14,6 @@ root = mypath(1:filesepinds(end-nDirsUp+1));
 
 sublist = [2:7];
 nSubj = length(sublist);
-subcolors = viridis(nSubj+1);
-
 condlabs = {'Predictable','Random'};
 
 nCond = 2;
