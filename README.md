@@ -2,7 +2,7 @@
 
 ### To access data:
 
-Preprocessed fMRI data files can be downloaded from our Open Science Framework repository, at https://osf.io/5pk2z/ <br>
+Preprocessed fMRI data files can be downloaded from our Open Science Framework repository, at: https://osf.io/te5g2/ <br><br>
 That repository includes files "SampleFile_S0X.mat" and "TimingFile_S0X.mat" for each subject, as well as behavioral data (DataBehavioral.zip). It also includes the saved results of our decoding analyses (i.e. accuracy and shuffled label accuracy) in files "spat_decoding_results.zip", "resp_decoding_results.zip" and "bound_decoding_results.zip". <br> <br>
 To re-create the files with names like "MainTaskSignalByTrial_S0X.mat", which are directly used by our decoding analyses, you should run the script at:
 Preprocessing/MakeSamples/get_trial_avg_signal_all.m
@@ -19,7 +19,7 @@ Preprocessing/MakeSamples/get_trial_avg_signal_all.m
     - We provide the fully pre-processed data in our OSF repository, so this code is not needed to reproduce our analyses, but it is provided here for convenience.    
   - <b> MakeSamples </b>
     - Code to create "SampleFile" and "TimingFile" for each subject - these files are included in our OSF repository. 
-    - Code to create "XX_SignalByTrial_XX" files for each subject and each task - these files need to be re-created by running the code here.
+    - Code to create "XX_SignalByTrial_XX" files for each subject and each task - these files need to be re-created by running the code here (get_trial_avg_signal_all.m)
 
 - <b> Analysis </b>
   - <b> AnalyzeBehavior </b>
