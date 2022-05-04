@@ -1,6 +1,6 @@
 ## Flexible utilization of spatial- and motor-based codes for the storage of visuo-spatial information.
 Code related to our 2022 paper: <br>
-eLife2022;11:e75688 DOI: https://doi.org/10.7554/eLife.75688
+https://doi.org/10.7554/eLife.75688
 
 ### To access data:
 
